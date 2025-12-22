@@ -1,19 +1,4 @@
 
-import { GoogleGenAI } from "@google/genai";
-
-const SYSTEM_INSTRUCTION = `
-You are a sophisticated AI concierge for 'NewOak Limited', a premium real estate company in Accra, Ghana. 
-Your tone is professional, helpful, and exclusive. 
-
-Operational Protocol:
-- ALWAYS respond in clean, natural, and professional prose.
-- DO NOT use markdown formatting such as asterisks (**bold**), hashtags (#), or bullet points (* item). 
-- If you need to list items, use clear sentences or simple numbered lists (1. 2. 3.).
-- Use the googleMaps tool for accurate amenity information in Haatso, Musuku, and Ashongman.
-- Focus on real-time information.
-- Analyze images for architectural styles (terracotta, geometric, modern) and relate them to NewOak's high standards.
-`;
-
 export interface GroundingSource {
   title: string;
   uri: string;
@@ -24,37 +9,12 @@ export interface ChatResponse {
   sources: GroundingSource[];
 }
 
-/**
- * Strips all markdown symbols, asterisks, and hashtags to ensure a clean, professional appearance
- */
-const sanitizeText = (text: string): string => {
-  if (!text) return "";
-  
-  return text
-    // Remove bold/italic markdown
-    .replace(/\*\*\*/g, '')
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    // Remove headers
-    .replace(/#{1,6}\s?/g, '')
-    // Remove link markdown but keep text: [text](url) -> text
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
-    // Remove inline code
-    .replace(/`/g, '')
-    // Remove horizontal rules
-    .replace(/---/g, '')
-    // Remove blockquotes markers
-    .replace(/^\s*>\s+/gm, '')
-    // Remove any trailing or multiple spaces
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+const getApiUrl = (): string => {
+  // Use relative path for API calls, works in both local dev and production
+  return '/.netlify/functions/chat';
 };
 
 export class GeminiService {
-  private getAI() {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
-  }
-
   async generateChatResponse(
     userMessage: string, 
     history: { role: 'user' | 'model', parts: { text: string }[] }[],
@@ -62,60 +22,27 @@ export class GeminiService {
     imagePart?: { inlineData: { mimeType: string; data: string } }
   ): Promise<ChatResponse> {
     try {
-      const ai = this.getAI();
-      const contents = [
-        ...history.map(h => ({
-          role: h.role,
-          parts: h.parts
-        })),
-      ];
-
-      const currentParts: any[] = [{ text: userMessage }];
-      if (imagePart) {
-        currentParts.unshift(imagePart);
-      }
-
-      contents.push({ role: 'user', parts: currentParts });
-
-      // Using gemini-2.5-flash-latest for better compatibility with tools
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          tools: [{ googleMaps: {} }],
-          toolConfig: coords ? {
-            retrievalConfig: {
-              latLng: {
-                latitude: coords.lat,
-                longitude: coords.lng
-              }
-            }
-          } : undefined
+      const response = await fetch(getApiUrl(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          userMessage,
+          history,
+          coords,
+          imagePart,
+        }),
       });
 
-      const rawText = response.text || "I am currently analyzing the regional data. How else may I assist you?";
-      const sources: GroundingSource[] = [];
-      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      
-      if (groundingChunks) {
-        groundingChunks.forEach((chunk: any) => {
-          if (chunk.maps) {
-            sources.push({
-              title: chunk.maps.title || "View Location",
-              uri: chunk.maps.uri
-            });
-          }
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API error: ${response.statusText}`);
       }
 
-      return { 
-        text: sanitizeText(rawText), 
-        sources 
-      };
+      return await response.json();
     } catch (error) {
-      console.error("Gemini grounding error:", error);
+      console.error("Chat API error:", error);
       return { 
         text: "My apologies. Our localized intelligence grid is currently being updated. Please try again in a moment.",
         sources: []
@@ -125,35 +52,29 @@ export class GeminiService {
 
   async getNeighborhoodInsights(locationName: string, lat?: number, lng?: number): Promise<ChatResponse> {
     try {
-      const ai = this.getAI();
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `Provide a professional summary of amenities near ${locationName}, Accra. Focus on infrastructure, security, and schools. Use Google Maps grounding. Ensure no markdown formatting or asterisks.`,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          tools: [{ googleMaps: {} }],
-          toolConfig: lat && lng ? {
-            retrievalConfig: {
-              latLng: { latitude: lat, longitude: lng }
-            }
-          } : undefined
-        }
+      const response = await fetch(getApiUrl(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMessage: `Provide a professional summary of amenities near ${locationName}, Accra. Focus on infrastructure, security, and schools. Use Google Maps grounding. Ensure no markdown formatting or asterisks.`,
+          history: [],
+          coords: lat && lng ? { lat, lng } : undefined,
+        }),
       });
 
-      const sources: GroundingSource[] = [];
-      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      if (chunks) {
-        chunks.forEach((c: any) => {
-          if (c.maps) sources.push({ title: c.maps.title, uri: c.maps.uri });
-        });
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
       }
 
-      return { 
-        text: sanitizeText(response.text || "This neighborhood is characterized by premium infrastructure and high-quality residential standards."), 
-        sources 
-      };
+      return await response.json();
     } catch (error) {
-      return { text: "Strategic neighborhood intelligence is currently available upon request at our sales desk.", sources: [] };
+      console.error("Neighborhood insights error:", error);
+      return { 
+        text: "Strategic neighborhood intelligence is currently available upon request at our sales desk.", 
+        sources: [] 
+      };
     }
   }
 }
