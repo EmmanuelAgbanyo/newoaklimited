@@ -63,6 +63,5 @@ export const INITIAL_PROPERTIES: Property[] = [
 export const NAV_LINKS = [
   { name: 'Home', path: '/' },
   { name: 'Gallery', path: '/gallery' },
-  { name: 'Our Services', path: '/#services' },
-  { name: 'Admin', path: '/admin' }
+  { name: 'Our Services', path: '/#services' }
 ];
