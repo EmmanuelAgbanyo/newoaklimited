@@ -1,0 +1,161 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>NewOak Limited | Luxury Real Estate</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- Professional Mapping Styles -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              oak: {
+                DEFAULT: '#0A1F1C',
+                light: '#142d2a',
+                dark: '#051210'
+              },
+              gold: {
+                DEFAULT: '#C5A059',
+                light: '#d4b77a',
+                dark: '#a88644'
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
+            },
+            animation: {
+              'fade-in-up': 'fadeInUp 0.4s ease-out forwards',
+              'slide-in-right': 'slideInRight 0.5s cubic-bezier(0.19, 1, 0.22, 1) forwards',
+            },
+            keyframes: {
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              slideInRight: {
+                '0%': { transform: 'translateX(100%)' },
+                '100%': { transform: 'translateX(0)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #f8f9fa;
+        color: #0A1F1C;
+        -webkit-font-smoothing: antialiased;
+      }
+      
+      /* Smooth Height Transition for Chatbot */
+      .chat-window-transition {
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .glass {
+        background: rgba(10, 31, 28, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      
+      .luxury-shadow {
+        box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+      }
+
+      /* Custom Scrollbar for a premium look */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #C5A059;
+        border-radius: 10px;
+      }
+
+      /* Leaflet overrides */
+      .leaflet-container {
+        background: #051210 !important;
+        font-family: inherit;
+      }
+      .radar-pulse {
+        width: 12px;
+        height: 12px;
+        background: #C5A059;
+        border-radius: 50%;
+        position: relative;
+      }
+      .radar-pulse::after {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: -10px;
+        right: -10px;
+        bottom: -10px;
+        border: 2px solid #C5A059;
+        border-radius: 50%;
+        animation: radar-ping 2s infinite;
+        opacity: 0;
+      }
+      @keyframes radar-ping {
+        0% { transform: scale(0.5); opacity: 0.8; }
+        100% { transform: scale(2.5); opacity: 0; }
+      }
+
+      /* Custom Marker Cluster Styling */
+      .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
+        background-color: rgba(197, 160, 89, 0.2) !important;
+      }
+      .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+        background-color: rgba(197, 160, 89, 0.8) !important;
+        color: #fff !important;
+        font-weight: bold;
+        font-family: 'Inter', sans-serif;
+        font-size: 12px;
+      }
+
+      /* Chatbot sizing fixes */
+      @media (max-width: 640px) {
+        .chatbot-container {
+          height: calc(100dvh - 20px);
+          width: calc(100vw - 20px);
+          bottom: 10px;
+          right: 10px;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.11.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "leaflet": "https://esm.sh/leaflet@^1.9.4",
+    "leaflet.markercluster": "https://esm.sh/leaflet.markercluster@1.5.3",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+    "firebase/database": "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

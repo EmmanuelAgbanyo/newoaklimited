@@ -1,0 +1,9 @@
+{
+  "name": " Estate v4",
+  "description": "A premium real estate platform for high-end architectural properties, featuring an AI-powered concierge and professional property management tools.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
