@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Phone, MapPin, Mail, Instagram, Linkedin, Twitter } from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 import { Logo } from './Logo';
@@ -71,6 +71,12 @@ const Navbar: React.FC = () => {
 };
 
 const Footer: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleCopyrightDoubleClick = () => {
+    navigate('/admin');
+  };
+
   return (
     <footer className="bg-oak text-white pt-20 pb-10 font-sans">
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 border-b border-gray-800 pb-12 mb-10">
@@ -141,7 +147,14 @@ const Footer: React.FC = () => {
         </div>
       </div>
       <div className="text-center text-gray-500 text-xs tracking-widest uppercase">
-        &copy; {new Date().getFullYear()} NewOak Limited Ghana. Built with Excellence.
+        <span
+          onDoubleClick={handleCopyrightDoubleClick}
+          className="cursor-default select-none"
+          title=""
+        >
+          &copy;
+        </span>
+        {' '}{new Date().getFullYear()} NewOak Limited Ghana. Built with Excellence.
       </div>
     </footer>
   );
