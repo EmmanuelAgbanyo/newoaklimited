@@ -11,8 +11,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <!-- Professional Mapping Styles -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <script>
       tailwind.config = {
         theme: {
@@ -114,18 +112,6 @@
         100% { transform: scale(2.5); opacity: 0; }
       }
 
-      /* Custom Marker Cluster Styling */
-      .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large {
-        background-color: rgba(197, 160, 89, 0.2) !important;
-      }
-      .marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
-        background-color: rgba(197, 160, 89, 0.8) !important;
-        color: #fff !important;
-        font-weight: bold;
-        font-family: 'Inter', sans-serif;
-        font-size: 12px;
-      }
-
       /* Chatbot sizing fixes */
       @media (max-width: 640px) {
         .chatbot-container {
@@ -146,7 +132,6 @@
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "leaflet": "https://esm.sh/leaflet@^1.9.4",
-    "leaflet.markercluster": "https://esm.sh/leaflet.markercluster@1.5.3",
     "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
     "firebase/database": "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js",
