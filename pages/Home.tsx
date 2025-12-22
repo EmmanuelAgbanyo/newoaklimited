@@ -10,32 +10,12 @@ import { ref, onValue } from 'firebase/database';
 const Hero: React.FC = () => {
   const [assetSrc, setAssetSrc] = useState<string | null>(null);
   const [isAssetLoaded, setIsAssetLoaded] = useState(false);
-  const [isFallbackLoaded, setIsFallbackLoaded] = useState(false);
-
-  // Fallback image URL
-  const fallbackImage = "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?auto=format&fit=crop&q=80&w=2000";
-
-  useEffect(() => {
-    // Preload fallback image immediately for faster initial render
-    const img = new Image();
-    img.src = fallbackImage;
-    img.onload = () => setIsFallbackLoaded(true);
-  }, []);
 
   useEffect(() => {
     // Specifically fetch the image asset for the Hero section
     const assetRef = ref(db, 'settings/heroImage');
     const unsubscribe = onValue(assetRef, (snapshot) => {
-      const heroUrl = snapshot.val();
-      if (heroUrl) {
-        // Preload Firebase hero image
-        const img = new Image();
-        img.src = heroUrl;
-        img.onload = () => {
-          setAssetSrc(heroUrl);
-          setIsAssetLoaded(true);
-        };
-      }
+      setAssetSrc(snapshot.val());
     });
     return () => unsubscribe();
   }, []);
@@ -43,31 +23,27 @@ const Hero: React.FC = () => {
   return (
     <div className="relative h-screen w-full overflow-hidden flex items-center justify-center bg-oak">
       <div className="absolute inset-0">
-        {/* Skeleton placeholder shown while images load */}
-        <div className={`absolute inset-0 bg-gradient-to-br from-oak via-oak-light to-oak-dark transition-opacity duration-500 ${(isAssetLoaded || isFallbackLoaded) ? 'opacity-0' : 'opacity-100'}`}>
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
+        {assetSrc ? (
+          <div className="relative w-full h-full">
+            <img 
+              src={assetSrc} 
+              className={`w-full h-full object-cover transition-opacity duration-1000 ${isAssetLoaded ? 'opacity-100' : 'opacity-0'}`} 
+              onLoad={() => setIsAssetLoaded(true)}
+              alt="NewOak Hero Background"
+            />
+            {!isAssetLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center bg-oak">
+                 <Loader2 className="animate-spin text-gold" size={24} />
+              </div>
+            )}
           </div>
-        </div>
-
-        {/* Firebase hero image (priority) */}
-        {assetSrc && isAssetLoaded && (
-          <img
-            src={assetSrc}
-            className="w-full h-full object-cover animate-fade-in"
-            alt="NewOak Hero Background"
+        ) : (
+          <img 
+            src="https://images.unsplash.com/photo-1707343843437-caacff5cfa74?auto=format&fit=crop&q=80&w=2000" 
+            alt="New Oak Heights Luxury Architecture" 
+            className="w-full h-full object-cover"
           />
         )}
-
-        {/* Fallback image (shown only if no Firebase hero) */}
-        {!assetSrc && isFallbackLoaded && (
-          <img
-            src={fallbackImage}
-            alt="New Oak Heights Luxury Architecture"
-            className="w-full h-full object-cover animate-fade-in"
-          />
-        )}
-
         <div className="absolute inset-0 bg-gradient-to-r from-oak/90 via-oak/20 to-transparent"></div>
       </div>
 
@@ -338,31 +314,31 @@ export const Home: React.FC = () => {
       <FeaturedSlider />
 
       {/* Enhanced Services Section */}
-      <section id="services" className="py-16 sm:py-24 lg:py-32 bg-oak text-white overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16 lg:mb-24">
-             <span className="text-gold uppercase tracking-[0.3em] sm:tracking-[0.5em] text-[10px] font-bold block mb-3 sm:mb-4">The Portfolio</span>
-             <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl mb-4 sm:mb-6">Unrivaled Excellence</h2>
-             <p className="text-gray-400 font-light leading-relaxed text-sm sm:text-base lg:text-lg px-2">Defining the premium landscape of Accra with integrity, architectural foresight, and cutting-edge technology. Every NewOak development is a meticulous blend of Ghanaian heritage and global luxury standards.</p>
+      <section id="services" className="py-32 bg-oak text-white overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center max-w-3xl mx-auto mb-24">
+             <span className="text-gold uppercase tracking-[0.5em] text-[10px] font-bold block mb-4">The Portfolio</span>
+             <h2 className="font-serif text-5xl mb-6">Unrivaled Excellence</h2>
+             <p className="text-gray-400 font-light leading-relaxed text-lg">Defining the premium landscape of Accra with integrity, architectural foresight, and cutting-edge technology. Every NewOak development is a meticulous blend of Ghanaian heritage and global luxury standards.</p>
           </div>
 
-          {/* Services Grid - Improved mobile layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-16 sm:mb-24 lg:mb-32">
+          {/* Services Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-32">
             {services.map((s, i) => (
-              <div key={i} className="group p-6 sm:p-8 lg:p-10 border border-white/5 hover:border-gold/30 transition-all duration-500 bg-white/0 hover:bg-white/[0.02] rounded-sm">
-                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 lg:gap-8">
+              <div key={i} className="group p-10 border border-white/5 hover:border-gold/30 transition-all duration-500 bg-white/0 hover:bg-white/[0.02] rounded-sm">
+                <div className="flex items-start gap-8">
                   <div className="flex-shrink-0">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gold/10 rounded-sm flex items-center justify-center group-hover:bg-gold/20 transition-colors">
-                      <s.icon className="w-6 h-6 sm:w-8 sm:h-8 text-gold" />
+                    <div className="w-16 h-16 bg-gold/10 rounded-sm flex items-center justify-center group-hover:bg-gold/20 transition-colors">
+                      <s.icon className="w-8 h-8 text-gold" />
                     </div>
                   </div>
                   <div className="flex-grow">
-                    <h3 className="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">{s.title}</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm leading-relaxed font-light mb-4 sm:mb-6">{s.desc}</p>
-                    <div className="flex flex-wrap gap-2 sm:gap-3">
+                    <h3 className="font-serif text-2xl mb-4">{s.title}</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed font-light mb-6">{s.desc}</p>
+                    <div className="flex flex-wrap gap-3">
                       {s.features.map((feature, fi) => (
-                        <span key={fi} className="inline-flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] uppercase tracking-wider sm:tracking-widest text-gold/80 bg-gold/5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-gold/10">
-                          <CheckCircle2 size={10} className="sm:w-3 sm:h-3" />
+                        <span key={fi} className="inline-flex items-center gap-2 text-[10px] uppercase tracking-widest text-gold/80 bg-gold/5 px-4 py-2 rounded-full border border-gold/10">
+                          <CheckCircle2 size={12} />
                           {feature}
                         </span>
                       ))}
@@ -373,64 +349,64 @@ export const Home: React.FC = () => {
             ))}
           </div>
 
-          {/* Platform Features Section - Improved mobile layout */}
-          <div className="border-t border-white/10 pt-16 sm:pt-20 lg:pt-24 mb-16 sm:mb-24 lg:mb-32">
-            <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-12 lg:mb-16">
-              <span className="text-gold uppercase tracking-[0.3em] sm:tracking-[0.5em] text-[10px] font-bold block mb-3 sm:mb-4">Digital Intelligence</span>
-              <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6">Powered by Advanced Technology</h3>
-              <p className="text-gray-400 font-light leading-relaxed text-sm sm:text-base px-2">Our digital platform delivers unprecedented insights. Explore properties through intelligent maps, generate AI-powered investment reports, and access verified neighborhood data—all at your fingertips.</p>
+          {/* Platform Features Section */}
+          <div className="border-t border-white/10 pt-24 mb-32">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="text-gold uppercase tracking-[0.5em] text-[10px] font-bold block mb-4">Digital Intelligence</span>
+              <h3 className="font-serif text-4xl mb-6">Powered by Advanced Technology</h3>
+              <p className="text-gray-400 font-light leading-relaxed">Our digital platform delivers unprecedented insights. Explore properties through intelligent maps, generate AI-powered investment reports, and access verified neighborhood data—all at your fingertips.</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-6 lg:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {platformFeatures.map((feature, i) => (
                 <div key={i} className="text-center group">
-                  <div className="w-16 h-16 sm:w-18 lg:w-20 sm:h-18 lg:h-20 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5 lg:mb-6 group-hover:bg-gold group-hover:scale-110 transition-all duration-500">
-                    <feature.icon className="w-6 h-6 sm:w-7 lg:w-8 sm:h-7 lg:h-8 text-gold group-hover:text-white transition-colors" />
+                  <div className="w-20 h-20 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-gold group-hover:scale-110 transition-all duration-500">
+                    <feature.icon className="w-8 h-8 text-gold group-hover:text-white transition-colors" />
                   </div>
-                  <h4 className="font-serif text-lg sm:text-xl mb-2 sm:mb-3">{feature.title}</h4>
-                  <p className="text-gray-500 text-xs leading-relaxed font-light px-4 sm:px-2">{feature.desc}</p>
+                  <h4 className="font-serif text-xl mb-3">{feature.title}</h4>
+                  <p className="text-gray-500 text-xs leading-relaxed font-light">{feature.desc}</p>
                 </div>
               ))}
             </div>
 
-            <div className="text-center mt-10 sm:mt-12 lg:mt-16">
-              <Link to="/gallery" className="inline-flex items-center gap-2 sm:gap-3 bg-gold text-white px-8 sm:px-10 py-4 sm:py-5 rounded-full font-bold uppercase tracking-widest text-[9px] sm:text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
+            <div className="text-center mt-16">
+              <Link to="/gallery" className="inline-flex items-center gap-3 bg-gold text-white px-10 py-5 rounded-full font-bold uppercase tracking-widest text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
                 <span>Explore the Gallery</span>
-                <ArrowRight size={14} className="sm:w-4 sm:h-4" />
+                <ArrowRight size={16} />
               </Link>
             </div>
           </div>
 
-          {/* Testimonials Section - Improved mobile layout */}
-          <div className="border-t border-white/10 pt-16 sm:pt-20 lg:pt-24">
-            <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-12 lg:mb-16">
-              <span className="text-gold uppercase tracking-[0.3em] sm:tracking-[0.5em] text-[10px] font-bold block mb-3 sm:mb-4">Client Success</span>
-              <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl mb-4 sm:mb-6">Trusted by Discerning Investors</h3>
-              <p className="text-gray-400 font-light leading-relaxed text-sm sm:text-base px-2">Our commitment to excellence has earned the trust of investors across Ghana and the diaspora. Hear from those who have experienced the NewOak difference.</p>
+          {/* Testimonials Section */}
+          <div className="border-t border-white/10 pt-24">
+            <div className="text-center max-w-3xl mx-auto mb-16">
+              <span className="text-gold uppercase tracking-[0.5em] text-[10px] font-bold block mb-4">Client Success</span>
+              <h3 className="font-serif text-4xl mb-6">Trusted by Discerning Investors</h3>
+              <p className="text-gray-400 font-light leading-relaxed">Our commitment to excellence has earned the trust of investors across Ghana and the diaspora. Hear from those who have experienced the NewOak difference.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {testimonials.map((testimonial, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/5 p-6 sm:p-8 lg:p-10 rounded-sm hover:border-gold/20 transition-all duration-500 group">
-                  <div className="flex gap-1 mb-4 sm:mb-6">
+                <div key={i} className="bg-white/[0.02] border border-white/5 p-10 rounded-sm hover:border-gold/20 transition-all duration-500 group">
+                  <div className="flex gap-1 mb-6">
                     {[...Array(testimonial.rating)].map((_, si) => (
-                      <Star key={si} size={14} className="sm:w-4 sm:h-4 text-gold fill-gold" />
+                      <Star key={si} size={16} className="text-gold fill-gold" />
                     ))}
                   </div>
-                  <Quote className="w-8 h-8 sm:w-10 sm:h-10 text-gold/20 mb-4 sm:mb-6" />
-                  <p className="text-gray-300 text-sm leading-relaxed font-light mb-6 sm:mb-8 italic">"{testimonial.quote}"</p>
-                  <div className="border-t border-white/5 pt-4 sm:pt-6">
-                    <p className="font-serif text-base sm:text-lg text-white mb-1">{testimonial.name}</p>
-                    <p className="text-gold text-[9px] sm:text-[10px] uppercase tracking-widest font-bold">{testimonial.title}</p>
+                  <Quote className="w-10 h-10 text-gold/20 mb-6" />
+                  <p className="text-gray-300 text-sm leading-relaxed font-light mb-8 italic">"{testimonial.quote}"</p>
+                  <div className="border-t border-white/5 pt-6">
+                    <p className="font-serif text-lg text-white mb-1">{testimonial.name}</p>
+                    <p className="text-gold text-[10px] uppercase tracking-widest font-bold">{testimonial.title}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Stats Section - Improved mobile layout */}
-          <div className="border-t border-white/10 mt-16 sm:mt-20 lg:mt-24 pt-16 sm:pt-20 lg:pt-24">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 lg:gap-12 text-center">
+          {/* Stats Section */}
+          <div className="border-t border-white/10 mt-24 pt-24">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
               {[
                 { value: '15+', label: 'Premium Properties' },
                 { value: '98%', label: 'Client Satisfaction' },
@@ -438,8 +414,8 @@ export const Home: React.FC = () => {
                 { value: '24/7', label: 'Concierge Support' }
               ].map((stat, i) => (
                 <div key={i} className="group">
-                  <span className="font-serif text-4xl sm:text-5xl lg:text-6xl text-gold block mb-2 sm:mb-3 lg:mb-4 group-hover:scale-110 transition-transform">{stat.value}</span>
-                  <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] text-gray-400 font-bold">{stat.label}</span>
+                  <span className="font-serif text-5xl md:text-6xl text-gold block mb-4 group-hover:scale-110 transition-transform">{stat.value}</span>
+                  <span className="text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold">{stat.label}</span>
                 </div>
               ))}
             </div>
