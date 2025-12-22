@@ -1,19 +1,17 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Grid, ArrowRight, X, Sparkles, Loader2, ExternalLink, Navigation, Layers, Globe, Map as MapIcon, Mountain } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, MapPin, Grid, ArrowRight, X, Sparkles, Loader2, ExternalLink, Navigation, Layers, Globe, Map as MapIcon } from 'lucide-react';
 import { INITIAL_PROPERTIES } from '../constants';
 import { Property, PropertyCategory } from '../types';
 import { geminiService, GroundingSource } from '../services/geminiService';
 import { db } from '../services/firebase';
 import { ref, onValue } from 'firebase/database';
 import L from 'leaflet';
-import 'leaflet.markercluster';
 
-type MapLayerType = 'dark' | 'satellite' | 'streets' | 'terrain';
+type MapLayerType = 'dark' | 'satellite' | 'streets';
 
 export const Gallery: React.FC = () => {
-  const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoadingProps, setIsLoadingProps] = useState(true);
   const [filter, setFilter] = useState<PropertyCategory | 'All'>('All');
@@ -29,7 +27,7 @@ export const Gallery: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const markerClusterGroupRef = useRef<any>(null);
+  const markersRef = useRef<{ [key: string]: L.Marker }>({});
 
   useEffect(() => {
     const propertiesRef = ref(db, 'properties');
@@ -79,10 +77,6 @@ export const Gallery: React.FC = () => {
     streets: {
       url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
       attribution: '&copy; CartoDB'
-    },
-    terrain: {
-      url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      attribution: 'Map data: &copy; OpenStreetMap, SRTM | Map style: &copy; OpenTopoMap'
     }
   };
 
@@ -91,7 +85,7 @@ export const Gallery: React.FC = () => {
       if (tileLayerRef.current) tileLayerRef.current.remove();
       const config = layerConfigs[mapType];
       tileLayerRef.current = L.tileLayer(config.url, {
-        maxZoom: 18,
+        maxZoom: 19,
         attribution: config.attribution
       }).addTo(mapInstanceRef.current);
     }
@@ -105,34 +99,27 @@ export const Gallery: React.FC = () => {
         attributionControl: false
       }).setView(accraCoords, 13);
       mapInstanceRef.current = map;
-      
       const config = layerConfigs[mapType];
-      tileLayerRef.current = L.tileLayer(config.url, { maxZoom: 18 }).addTo(map);
-      
-      // Initialize Marker Cluster Group
-      markerClusterGroupRef.current = (L as any).markerClusterGroup({
-        showCoverageOnHover: false,
-        zoomToBoundsOnClick: true,
-        spiderfyOnMaxZoom: true,
-        disableClusteringAtZoom: 17,
-        maxClusterRadius: 40
-      });
-      map.addLayer(markerClusterGroupRef.current);
-      
+      tileLayerRef.current = L.tileLayer(config.url, { maxZoom: 19 }).addTo(map);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
     }
     return () => {
       if (viewMode !== 'map' && mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
-        markerClusterGroupRef.current = null;
+        markersRef.current = {};
       }
     };
   }, [viewMode]);
 
   useEffect(() => {
-    if (viewMode === 'map' && mapInstanceRef.current && markerClusterGroupRef.current) {
-      markerClusterGroupRef.current.clearLayers();
+    if (viewMode === 'map' && mapInstanceRef.current) {
+      Object.keys(markersRef.current).forEach(id => {
+        if (!filteredProperties.find(p => p.id === id)) {
+          markersRef.current[id].remove();
+          delete markersRef.current[id];
+        }
+      });
 
       filteredProperties.forEach(p => {
         if (p.coordinates) {
@@ -142,46 +129,27 @@ export const Gallery: React.FC = () => {
             html: `
               <div class="relative flex items-center justify-center">
                 <div class="radar-pulse ${isSelected ? 'scale-150 shadow-[0_0_20px_#C5A059]' : ''}"></div>
+                ${isSelected ? '<div class="absolute -top-12 bg-oak text-white text-[8px] font-bold px-2 py-1 rounded whitespace-nowrap uppercase tracking-widest border border-gold/30 shadow-xl">' + p.title + '</div>' : ''}
               </div>
             `,
             iconSize: [30, 30],
             iconAnchor: [15, 15]
           });
-
-          const marker = L.marker([p.coordinates.lat, p.coordinates.lng], { icon });
-          
-          // Professional Popup content
-          const popupContent = document.createElement('div');
-          popupContent.className = 'p-0 overflow-hidden rounded-sm w-64 font-sans';
-          popupContent.innerHTML = `
-            <div class="relative h-32 w-full">
-              <img src="${p.images[0]}" class="w-full h-full object-cover" />
-              <div class="absolute top-2 right-2 bg-oak/90 text-gold text-[8px] font-bold px-2 py-1 uppercase tracking-widest rounded-sm">${p.category}</div>
-            </div>
-            <div class="p-4 bg-white border border-t-0 border-gray-100">
-              <h5 class="font-serif text-lg text-oak mb-1 leading-tight">${p.title}</h5>
-              <p class="text-[9px] text-gray-400 uppercase tracking-widest mb-4 flex items-center"><i class="lucide-map-pin w-2 h-2 mr-1"></i> ${p.location}</p>
-              <button class="w-full bg-oak text-white py-2 text-[9px] font-bold uppercase tracking-[0.2em] hover:bg-gold transition-colors" id="popup-btn-${p.id}">View Dossier</button>
-            </div>
-          `;
-
-          marker.bindPopup(popupContent, {
-            maxWidth: 300,
-            className: 'custom-leaflet-popup'
-          });
-
-          marker.on('popupopen', () => {
-            document.getElementById(`popup-btn-${p.id}`)?.addEventListener('click', () => {
-              navigate(`/property/${p.id}`);
-            });
-            setSelectedProperty(p);
-          });
-
-          markerClusterGroupRef.current.addLayer(marker);
+          if (markersRef.current[p.id]) {
+            markersRef.current[p.id].setIcon(icon);
+          } else {
+            const marker = L.marker([p.coordinates.lat, p.coordinates.lng], { icon })
+              .addTo(mapInstanceRef.current!)
+              .on('click', () => {
+                setSelectedProperty(p);
+                mapInstanceRef.current?.flyTo([p.coordinates!.lat, p.coordinates!.lng], 15);
+              });
+            markersRef.current[p.id] = marker;
+          }
         }
       });
     }
-  }, [viewMode, filteredProperties, selectedProperty, navigate]);
+  }, [viewMode, filteredProperties, selectedProperty]);
 
   useEffect(() => { if (selectedProperty) setScanResult(null); }, [selectedProperty]);
 
@@ -285,10 +253,8 @@ export const Gallery: React.FC = () => {
         ) : (
           <div className="relative h-[800px] w-full rounded-sm overflow-hidden border border-oak/10 shadow-2xl">
             <div ref={mapContainerRef} className="h-full w-full z-10" />
-            
-            {/* Intel Sidebar Component */}
             {selectedProperty && (
-              <div className="absolute top-10 right-10 w-full max-w-[420px] bg-white rounded-sm shadow-2xl z-20 animate-in slide-in-from-right duration-500 overflow-hidden border border-gray-100 hidden md:block">
+              <div className="absolute top-10 right-10 w-full max-w-[420px] bg-white rounded-sm shadow-2xl z-20 animate-in slide-in-from-right duration-500 overflow-hidden border border-gray-100">
                 <div className="relative h-48">
                   <img src={selectedProperty.images[0]} className="w-full h-full object-cover" alt="" />
                   <button onClick={() => setSelectedProperty(null)} className="absolute top-4 right-4 bg-oak/80 text-white p-2 rounded-full hover:bg-oak transition-colors">
@@ -321,7 +287,7 @@ export const Gallery: React.FC = () => {
                          <p className="text-[10px] text-gray-500 leading-relaxed font-light">{scanResult.text}</p>
                          <div className="flex flex-wrap gap-2 pt-2">
                            {scanResult.sources.map((s, i) => (
-                             <a key={i} href={s.uri} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 bg-white border border-gray-100 px-3 py-1.5 rounded-sm text-[9px] font-bold text-gray-500 hover:border-gold hover:text-gold transition-all">
+                             <a key={i} href={s.uri} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 bg-white border border-gray-200 px-3 py-1.5 rounded-sm text-[9px] font-bold text-gray-500 hover:border-gold hover:text-gold transition-all">
                                <span className="truncate max-w-[120px]">{s.title}</span>
                                <ExternalLink size={10} />
                              </a>
@@ -337,30 +303,16 @@ export const Gallery: React.FC = () => {
                 </div>
               </div>
             )}
-
-            {/* Custom Layer Controls */}
             <div className="absolute top-10 left-10 z-20 flex flex-col space-y-2">
                <div className="bg-oak/90 backdrop-blur-md p-1.5 rounded-lg border border-gold/20 flex flex-col space-y-1 shadow-2xl">
-                  {[
-                    { id: 'dark', icon: MapIcon, label: 'Intel' }, 
-                    { id: 'satellite', icon: Globe, label: 'Satellite' }, 
-                    { id: 'terrain', icon: Mountain, label: 'Terrain' },
-                    { id: 'streets', icon: Layers, label: 'Streets' }
-                  ].map((layer) => (
-                    <button 
-                      key={layer.id} 
-                      onClick={() => setMapType(layer.id as MapLayerType)} 
-                      className={`flex items-center space-x-3 px-4 py-2.5 rounded-md transition-all group ${mapType === layer.id ? 'bg-gold text-oak' : 'text-gray-400 hover:text-white hover:bg-white/10'}`} 
-                      title={layer.label}
-                    >
+                  {[{ id: 'dark', icon: MapIcon, label: 'Intel' }, { id: 'satellite', icon: Globe, label: 'Satellite' }, { id: 'streets', icon: Layers, label: 'Streets' }].map((layer) => (
+                    <button key={layer.id} onClick={() => setMapType(layer.id as MapLayerType)} className={`flex items-center space-x-3 px-4 py-2.5 rounded-md transition-all group ${mapType === layer.id ? 'bg-gold text-oak' : 'text-gray-400 hover:text-white hover:bg-white/10'}`} title={layer.label}>
                       <layer.icon size={16} />
                       <span className="text-[10px] uppercase font-bold tracking-widest hidden md:block">{layer.label}</span>
                     </button>
                   ))}
                </div>
             </div>
-
-            {/* Status Panel */}
             <div className="absolute bottom-10 left-10 space-y-4 z-20 pointer-events-none">
               <div className="bg-oak/90 backdrop-blur-md px-6 py-4 rounded-sm border border-gold/20 luxury-shadow flex items-center space-x-6">
                 <div className="relative">
@@ -368,7 +320,7 @@ export const Gallery: React.FC = () => {
                    <Navigation size={16} className="text-gold absolute inset-0 m-auto" />
                 </div>
                 <div>
-                   <span className="text-[10px] uppercase font-bold tracking-[0.4em] text-white block">Cluster Logic: Passive</span>
+                   <span className="text-[10px] uppercase font-bold tracking-[0.4em] text-white block">Grid Status: Active</span>
                    <span className="text-[9px] text-gray-400 uppercase tracking-widest">Global Mapping Standard Enabled</span>
                 </div>
               </div>
@@ -376,21 +328,6 @@ export const Gallery: React.FC = () => {
           </div>
         )}
       </div>
-      <style>{`
-        .custom-leaflet-popup .leaflet-popup-content-wrapper {
-          padding: 0;
-          border-radius: 4px;
-          overflow: hidden;
-          background: #0A1F1C;
-        }
-        .custom-leaflet-popup .leaflet-popup-content {
-          margin: 0;
-          width: auto !important;
-        }
-        .custom-leaflet-popup .leaflet-popup-tip {
-          background: #0A1F1C;
-        }
-      `}</style>
     </div>
   );
 };
