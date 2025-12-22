@@ -56,6 +56,11 @@
         -webkit-font-smoothing: antialiased;
       }
 
+      /* Smooth Height Transition for Chatbot */
+      .chat-window-transition {
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
       .glass {
         background: rgba(10, 31, 28, 0.85);
         backdrop-filter: blur(12px);
@@ -106,11 +111,20 @@
         0% { transform: scale(0.5); opacity: 0.8; }
         100% { transform: scale(2.5); opacity: 0; }
       }
+
+      /* Chatbot sizing fixes */
+      @media (max-width: 640px) {
+        .chatbot-container {
+          height: calc(100dvh - 20px);
+          width: calc(100vw - 20px);
+          bottom: 10px;
+          right: 10px;
+        }
+      }
     </style>
 </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-    <script src='https://cdn.jotfor.ms/agent/embedjs/019b2833093c78c4aaa35cd56f7cf02ae548/embed.js'></script>
   </body>
 </html>
