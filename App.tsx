@@ -6,6 +6,7 @@ import { Home } from './pages/Home';
 import { Gallery } from './pages/Gallery';
 import { PropertyDetail } from './pages/PropertyDetail';
 import { Admin } from './pages/Admin';
+import { Chatbot } from './components/Chatbot';
 
 const LoadingScreen: React.FC = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-oak">
@@ -26,16 +27,19 @@ const App: React.FC = () => {
           <Route path="/" element={
             <Layout>
               <Home />
+              <Chatbot />
             </Layout>
           } />
           <Route path="/gallery" element={
             <Layout>
               <Gallery />
+              <Chatbot />
             </Layout>
           } />
           <Route path="/property/:id" element={
             <Layout>
               <PropertyDetail />
+              <Chatbot />
             </Layout>
           } />
         </Routes>
