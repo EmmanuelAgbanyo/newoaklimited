@@ -88,9 +88,22 @@ const Footer: React.FC = () => {
             Crafting legacies in Accra. NewOak Limited is your trusted partner for high-quality estates in Haatso, Musuku, and Ashongman.
           </p>
           <div className="flex space-x-4">
-            <Instagram className="w-5 h-5 text-gray-400 hover:text-gold cursor-pointer transition-colors" />
-            <Linkedin className="w-5 h-5 text-gray-400 hover:text-gold cursor-pointer transition-colors" />
-            <Twitter className="w-5 h-5 text-gray-400 hover:text-gold cursor-pointer transition-colors" />
+            <a href="https://www.instagram.com/newoak_limited?igsh=MTh4NDJleWszMW5tZg==" target="_blank" rel="noopener noreferrer" title="Instagram">
+              <Instagram className="w-5 h-5 text-gray-400 hover:text-gold cursor-pointer transition-colors" />
+            </a>
+            <a href="https://www.facebook.com/share/1DCHaVYvrz/" target="_blank" rel="noopener noreferrer" title="Facebook">
+              {/* If lucide-react has a Facebook icon, use it. Otherwise, use a generic globe or add a custom SVG. */}
+              {/* Example with lucide-react's Globe icon as placeholder: */}
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400 hover:text-gold cursor-pointer transition-colors">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9zm0 0c2.21 0 4 4.03 4 9s-1.79 9-4 9-4-4.03-4-9 1.79-9 4-9z" />
+              </svg>
+            </a>
+            <a href="https://www.linkedin.com/company/newoak-limited/" target="_blank" rel="noopener noreferrer" title="LinkedIn">
+              <Linkedin className="w-5 h-5 text-gray-400 hover:text-gold cursor-pointer transition-colors" />
+            </a>
+            <a href="https://twitter.com/newoak_limited" target="_blank" rel="noopener noreferrer" title="Twitter">
+              <Twitter className="w-5 h-5 text-gray-400 hover:text-gold cursor-pointer transition-colors" />
+            </a>
           </div>
         </div>
 
