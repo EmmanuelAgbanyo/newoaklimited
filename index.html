@@ -4,11 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>NewOak Company Limited | Luxury Real Estate</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Tailwind config -->
     <script>
       tailwind.config = {
         theme: {
@@ -28,103 +33,29 @@
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
               serif: ['Playfair Display', 'serif'],
-            },
-            animation: {
-              'fade-in-up': 'fadeInUp 0.4s ease-out forwards',
-              'slide-in-right': 'slideInRight 0.5s cubic-bezier(0.19, 1, 0.22, 1) forwards',
-            },
-            keyframes: {
-              fadeInUp: {
-                '0%': { opacity: '0', transform: 'translateY(10px)' },
-                '100%': { opacity: '1', transform: 'translateY(0)' },
-              },
-              slideInRight: {
-                '0%': { transform: 'translateX(100%)' },
-                '100%': { transform: 'translateX(0)' },
-              }
             }
           }
         }
       }
     </script>
+
     <style>
       body {
         background-color: #f8f9fa;
         color: #0A1F1C;
         -webkit-font-smoothing: antialiased;
       }
-
-      /* Smooth Height Transition for Chatbot */
-      .chat-window-transition {
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
-      .glass {
-        background: rgba(10, 31, 28, 0.85);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-      }
-
-      .luxury-shadow {
-        box-shadow: 0 20px 50px rgba(0,0,0,0.1);
-      }
-
-      /* Custom Scrollbar for a premium look */
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 4px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #C5A059;
-        border-radius: 10px;
-      }
-
-      /* Leaflet overrides */
-      .leaflet-container {
-        background: #051210 !important;
-        font-family: inherit;
-      }
-      .radar-pulse {
-        width: 12px;
-        height: 12px;
-        background: #C5A059;
-        border-radius: 50%;
-        position: relative;
-      }
-      .radar-pulse::after {
-        content: '';
-        position: absolute;
-        top: -10px;
-        left: -10px;
-        right: -10px;
-        bottom: -10px;
-        border: 2px solid #C5A059;
-        border-radius: 50%;
-        animation: radar-ping 2s infinite;
-        opacity: 0;
-      }
-      @keyframes radar-ping {
-        0% { transform: scale(0.5); opacity: 0.8; }
-        100% { transform: scale(2.5); opacity: 0; }
-      }
-
-      /* Chatbot sizing fixes */
-      @media (max-width: 640px) {
-        .chatbot-container {
-          height: calc(100dvh - 20px);
-          width: calc(100vw - 20px);
-          bottom: 10px;
-          right: 10px;
-        }
-      }
     </style>
-</head>
+  </head>
+
   <body>
     <div id="root"></div>
+
+    <!-- App entry -->
     <script type="module" src="/index.tsx"></script>
 
-    <script src='https://cdn.jotfor.ms/agent/embedjs/019b2833093c78c4aaa35cd56f7cf02ae548/embed.js'></script> 
+    <!-- ✅ Jotform Chatbot (ADD ONLY ONCE) -->
+    <script src="https://cdn.jotfor.ms/agent/embedjs/019b2833093c78c4aaa35cd56f7cf02ae548/embed.js"></script>
+
   </body>
 </html>
