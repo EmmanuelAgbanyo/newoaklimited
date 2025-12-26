@@ -132,7 +132,7 @@ const Footer: React.FC = () => {
           <ul className="space-y-4 text-sm text-gray-400 font-light">
             <li className="flex items-center space-x-3">
               <Mail className="w-4 h-4 text-gold" />
-              <a href="mailto:sales@newoaklimited.com" className="hover:text-gold transition-colors">sales@newoaklimited.com</a>
+              <a href="mailto:sales@newoakcompanylimited.com" className="hover:text-gold transition-colors">sales@newoakcompanylimited.com</a>
             </li>
             <li className="flex flex-col space-y-1">
               <div className="flex items-center space-x-3">
