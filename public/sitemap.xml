@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+  <!-- Homepage -->
+  <url>
+    <loc>https://newoak4.netlify.app/</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1707343843437-caacff5cfa74?auto=format&fit=crop&q=80&w=1200</image:loc>
+      <image:title>NewOak Company Limited - Luxury Real Estate in Accra, Ghana</image:title>
+    </image:image>
+  </url>
+
+  <!-- Gallery / Portfolio -->
+  <url>
+    <loc>https://newoak4.netlify.app/#/gallery</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200</image:loc>
+      <image:title>NewOak Property Gallery - Luxury Real Estate Portfolio</image:title>
+    </image:image>
+  </url>
+
+  <!-- Upcoming Projects -->
+  <url>
+    <loc>https://newoak4.netlify.app/#/upcoming-projects</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Blog -->
+  <url>
+    <loc>https://newoak4.netlify.app/#/blog</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Featured Properties -->
+  <url>
+    <loc>https://newoak4.netlify.app/#/property/1</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200</image:loc>
+      <image:title>New Oak Heights - Luxury Penthouse in Haatso, Accra</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://newoak4.netlify.app/#/property/2</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200</image:loc>
+      <image:title>Ashongman Suburban Estate - Family Home in Musuku Junction, Accra</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://newoak4.netlify.app/#/property/3</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=1200</image:loc>
+      <image:title>The Sanctuary Villas - Modern Townhouses in Ashongman Estate, Accra</image:title>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://newoak4.netlify.app/#/property/4</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=1200</image:loc>
+      <image:title>Wisconsin University Court - Investment Property in Haatso, Accra</image:title>
+    </image:image>
+  </url>
+
+</urlset>
