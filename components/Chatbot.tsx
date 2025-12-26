@@ -153,8 +153,15 @@ export const Chatbot: React.FC = () => {
 
   const startLiveSession = async () => {
     try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        console.error('VITE_GEMINI_API_KEY is not configured for live voice mode');
+        setIsLiveActive(false);
+        setMode('text');
+        return;
+      }
       setIsLiveActive(true);
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       const inCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       audioContextRef.current = inCtx;
