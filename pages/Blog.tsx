@@ -4,6 +4,7 @@ import { Calendar, User, Tag, ArrowLeft, Clock, ChevronRight } from 'lucide-reac
 import { BlogPost } from '../types';
 import { db } from '../services/firebase';
 import { ref, onValue } from 'firebase/database';
+import { SEO, pageSEO, getBlogPostSEO } from '../components/SEO';
 
 const BlogCard: React.FC<{ post: BlogPost }> = ({ post }) => {
   const formattedDate = new Date(post.publishedAt).toLocaleDateString('en-US', {
@@ -97,6 +98,7 @@ const BlogList: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO {...pageSEO.blog} />
       {/* Hero Section */}
       <section className="relative bg-oak py-24 md:py-32">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-20"></div>
@@ -229,6 +231,7 @@ const BlogDetail: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO {...getBlogPostSEO(post)} />
       {/* Hero */}
       <section className="relative h-[50vh] md:h-[60vh]">
         <img

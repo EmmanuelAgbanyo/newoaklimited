@@ -9,6 +9,7 @@ import { geminiService, GroundingSource } from '../services/geminiService';
 import { Property, Booking, BookingStatus } from '../types';
 import { db } from '../services/firebase';
 import { ref, onValue, push, set as firebaseSet } from 'firebase/database';
+import { SEO, getPropertySEO } from '../components/SEO';
 
 export const PropertyDetail: React.FC = () => {
   const { id } = useParams();
@@ -109,6 +110,7 @@ export const PropertyDetail: React.FC = () => {
 
   return (
     <div className="pt-32 pb-40 bg-white font-sans selection:bg-gold selection:text-white">
+      <SEO {...getPropertySEO(property)} />
       {showLightbox && (
         <div className="fixed inset-0 z-[200] bg-oak/98 flex items-center justify-center p-10 animate-in fade-in duration-500">
            <button onClick={() => setShowLightbox(false)} className="absolute top-10 right-10 text-white hover:text-gold transition-colors active:scale-90"><X size={40} /></button>

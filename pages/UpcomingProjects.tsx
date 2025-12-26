@@ -3,6 +3,7 @@ import { MapPin, Calendar, Building2, ChevronRight, Hammer, Clock, CheckCircle2 
 import { UpcomingProject, ProjectStatus } from '../types';
 import { db } from '../services/firebase';
 import { ref, onValue } from 'firebase/database';
+import { SEO, pageSEO } from '../components/SEO';
 
 const StatusBadge: React.FC<{ status: ProjectStatus }> = ({ status }) => {
   const getStatusStyles = () => {
@@ -68,6 +69,7 @@ export const UpcomingProjects: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO {...pageSEO.upcomingProjects} />
       {/* Hero Section */}
       <section className="relative bg-oak py-24 md:py-32">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=2000')] bg-cover bg-center opacity-20"></div>

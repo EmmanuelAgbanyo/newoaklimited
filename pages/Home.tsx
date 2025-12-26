@@ -6,6 +6,7 @@ import { INITIAL_PROPERTIES } from '../constants';
 import { Property } from '../types';
 import { db } from '../services/firebase';
 import { ref, onValue } from 'firebase/database';
+import { SEO, pageSEO } from '../components/SEO';
 
 const Hero: React.FC = () => {
   const [heroImages, setHeroImages] = useState<string[]>([]);
@@ -368,6 +369,7 @@ export const Home: React.FC = () => {
 
   return (
     <>
+      <SEO {...pageSEO.home} />
       <Hero />
       <VideoSection />
       <FeaturedSlider />

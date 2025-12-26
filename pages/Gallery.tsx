@@ -8,6 +8,7 @@ import { geminiService, GroundingSource } from '../services/geminiService';
 import { db } from '../services/firebase';
 import { ref, onValue } from 'firebase/database';
 import L from 'leaflet';
+import { SEO, pageSEO } from '../components/SEO';
 
 type MapLayerType = 'dark' | 'satellite' | 'streets';
 
@@ -155,6 +156,7 @@ export const Gallery: React.FC = () => {
 
   return (
     <div className="pt-40 pb-32 min-h-screen bg-gray-50 font-sans selection:bg-gold selection:text-white overflow-x-hidden">
+      <SEO {...pageSEO.gallery} />
       <div className="max-w-7xl mx-auto px-6">
         <header className="mb-20 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10">
           <div className="space-y-4">
