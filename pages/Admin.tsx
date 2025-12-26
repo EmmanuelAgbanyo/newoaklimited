@@ -36,6 +36,7 @@ export const Admin: React.FC = () => {
   const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomVideo, setHasCustomVideo] = useState(false);
+  const [heroImages, setHeroImages] = useState<string[]>([]);
   
   // Property State
   const [properties, setProperties] = useState<Property[]>([]);
@@ -108,9 +109,16 @@ export const Admin: React.FC = () => {
     });
 
     // Settings Listeners
-    const heroRef = ref(db, 'settings/heroImage');
+    const heroRef = ref(db, 'settings/heroImages');
     const unsubscribeHero = onValue(heroRef, (snapshot) => {
-      setHasCustomHero(!!snapshot.val());
+      const data = snapshot.val();
+      if (data && Array.isArray(data)) {
+        setHeroImages(data);
+        setHasCustomHero(data.length > 0);
+      } else {
+        setHeroImages([]);
+        setHasCustomHero(false);
+      }
     });
 
     const videoRef = ref(db, 'settings/corporateVideo');
@@ -302,6 +310,11 @@ export const Admin: React.FC = () => {
       alert("Hero image exceeds 3MB limit. Please compress or select a smaller image.");
       return;
     }
+    // Maximum 10 images in carousel
+    if (heroImages.length >= 10) {
+      alert("Maximum of 10 hero images allowed. Please remove some images first.");
+      return;
+    }
     setIsHeroUploading(true);
     const reader = new FileReader();
     reader.onerror = () => {
@@ -311,8 +324,9 @@ export const Admin: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const base64String = event.target?.result as string;
-        await set(ref(db, 'settings/heroImage'), base64String);
-        alert("Homepage Hero Image updated successfully.");
+        const updatedImages = [...heroImages, base64String];
+        await set(ref(db, 'settings/heroImages'), updatedImages);
+        alert("Hero image added to carousel successfully.");
       } catch (err) {
         console.error("Upload error:", err);
         alert("Failed to sync hero image to the cloud.");
@@ -321,6 +335,14 @@ export const Admin: React.FC = () => {
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const removeHeroImage = async (index: number) => {
+    if (window.confirm("Remove this image from the hero carousel?")) {
+      const updatedImages = heroImages.filter((_, i) => i !== index);
+      await set(ref(db, 'settings/heroImages'), updatedImages);
+    }
   };
 
   const handleCorporateVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -341,9 +363,9 @@ export const Admin: React.FC = () => {
   };
 
   const resetHero = async () => {
-    if (window.confirm("Revert 'Homepage Hero Image' to the architectural default?")) {
-      await remove(ref(db, 'settings/heroImage'));
-      alert("Hero Image reset.");
+    if (window.confirm("Remove all hero carousel images and revert to the default?")) {
+      await remove(ref(db, 'settings/heroImages'));
+      alert("Hero carousel reset to default.");
     }
   };
 
@@ -1301,41 +1323,77 @@ export const Admin: React.FC = () => {
           )}
 
           {activeTab === 'settings' && (
-            <div className="max-w-2xl bg-white p-10 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-500">
+            <div className="max-w-3xl bg-white p-10 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-500">
               <h3 className="font-serif text-2xl text-oak mb-8">System Configuration</h3>
               <div className="space-y-8">
-                {/* Hero Image Section */}
+                {/* Hero Image Carousel Section */}
                 <div className="flex flex-col space-y-4 p-6 bg-oak/5 rounded-xl border border-oak/5">
                    <div className="flex items-center justify-between">
                      <div>
-                       <p className="text-xs font-bold text-oak">Homepage Hero Image</p>
-                       <p className="text-[9px] text-gray-400 uppercase tracking-widest">Global static cover for the Hero section (Max 3MB)</p>
+                       <p className="text-xs font-bold text-oak">Hero Image Carousel</p>
+                       <p className="text-[9px] text-gray-400 uppercase tracking-widest">Upload multiple images for auto-sliding hero (Max 3MB each, up to 10 images)</p>
                      </div>
                      <div className="flex items-center space-x-3">
                        {hasCustomHero && (
-                         <button 
-                           onClick={resetHero} 
+                         <button
+                           onClick={resetHero}
                            className="text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-red-100"
                          >
-                           Reset Default
+                           Clear All
                          </button>
                        )}
-                       <button 
-                         onClick={() => heroImageInputRef.current?.click()} 
-                         disabled={isHeroUploading} 
+                       <button
+                         onClick={() => heroImageInputRef.current?.click()}
+                         disabled={isHeroUploading || heroImages.length >= 10}
                          className="bg-white border border-gray-200 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-all flex items-center space-x-2 disabled:opacity-50 shadow-sm"
                        >
-                         {isHeroUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                         <span>{isHeroUploading ? 'Uploading...' : 'Change Hero'}</span>
+                         {isHeroUploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                         <span>{isHeroUploading ? 'Uploading...' : 'Add Image'}</span>
                        </button>
                      </div>
                    </div>
-                   <input 
-                     type="file" 
-                     ref={heroImageInputRef} 
-                     className="hidden" 
-                     accept="image/*" 
-                     onChange={handleHeroImageUpload} 
+
+                   {/* Hero Images Grid */}
+                   {heroImages.length > 0 && (
+                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+                       {heroImages.map((img, index) => (
+                         <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border-2 border-white shadow-sm hover:border-gold/50 transition-all">
+                           <img src={img} className="w-full h-full object-cover" alt={`Hero slide ${index + 1}`} />
+                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                             <button
+                               type="button"
+                               onClick={() => removeHeroImage(index)}
+                               className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                             >
+                               <Trash2 size={16} />
+                             </button>
+                           </div>
+                           <div className="absolute bottom-2 left-2 bg-oak/80 text-white text-[9px] px-2 py-1 rounded font-bold">
+                             {index + 1}
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+
+                   {heroImages.length === 0 && (
+                     <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-gray-200 rounded-xl mt-4">
+                       <ImageIcon size={32} className="text-gray-200 mb-3" />
+                       <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">No carousel images</p>
+                       <p className="text-[9px] text-gray-300 mt-1">Add images to create an auto-sliding hero</p>
+                     </div>
+                   )}
+
+                   <p className="text-[9px] text-gray-400 mt-2">
+                     <span className="font-bold text-gold">{heroImages.length}/10</span> images uploaded. Images will auto-rotate every 6 seconds on the homepage.
+                   </p>
+
+                   <input
+                     type="file"
+                     ref={heroImageInputRef}
+                     className="hidden"
+                     accept="image/*"
+                     onChange={handleHeroImageUpload}
                    />
                 </div>
 

@@ -8,39 +8,98 @@ import { db } from '../services/firebase';
 import { ref, onValue } from 'firebase/database';
 
 const Hero: React.FC = () => {
-  const [assetSrc, setAssetSrc] = useState<string | null>(null);
+  const [heroImages, setHeroImages] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isAssetLoaded, setIsAssetLoaded] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+
+  const defaultImage = "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?auto=format&fit=crop&q=80&w=2000";
 
   useEffect(() => {
-    // Specifically fetch the image asset for the Hero section
-    const assetRef = ref(db, 'settings/heroImage');
+    // Fetch hero images array
+    const assetRef = ref(db, 'settings/heroImages');
     const unsubscribe = onValue(assetRef, (snapshot) => {
-      setAssetSrc(snapshot.val());
+      const data = snapshot.val();
+      if (data && Array.isArray(data) && data.length > 0) {
+        setHeroImages(data);
+      } else {
+        setHeroImages([]);
+      }
     });
     return () => unsubscribe();
   }, []);
 
+  // Auto-rotate carousel every 6 seconds
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % heroImages.length);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [heroImages.length]);
+
+  const handleImageLoad = (index: number) => {
+    setLoadedImages(prev => new Set(prev).add(index));
+    if (index === currentIndex) {
+      setIsAssetLoaded(true);
+    }
+  };
+
+  // Track when image changes and update load state
+  useEffect(() => {
+    if (loadedImages.has(currentIndex)) {
+      setIsAssetLoaded(true);
+    } else {
+      setIsAssetLoaded(false);
+    }
+  }, [currentIndex, loadedImages]);
+
+  const currentImage = heroImages.length > 0 ? heroImages[currentIndex] : defaultImage;
+
   return (
     <div className="relative h-screen w-full overflow-hidden flex items-center justify-center bg-oak">
       <div className="absolute inset-0">
-        {assetSrc ? (
+        {heroImages.length > 0 ? (
           <div className="relative w-full h-full">
-            <img 
-              src={assetSrc} 
-              className={`w-full h-full object-cover transition-opacity duration-1000 ${isAssetLoaded ? 'opacity-100' : 'opacity-0'}`} 
-              onLoad={() => setIsAssetLoaded(true)}
-              alt="NewOak Hero Background"
-            />
+            {/* Preload all carousel images */}
+            {heroImages.map((src, index) => (
+              <img
+                key={index}
+                src={src}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+                  index === currentIndex && loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
+                }`}
+                onLoad={() => handleImageLoad(index)}
+                alt={`NewOak Hero Background ${index + 1}`}
+              />
+            ))}
             {!isAssetLoaded && (
               <div className="absolute inset-0 flex items-center justify-center bg-oak">
                  <Loader2 className="animate-spin text-gold" size={24} />
               </div>
             )}
+            {/* Carousel Indicators */}
+            {heroImages.length > 1 && (
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex space-x-2">
+                {heroImages.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentIndex(index)}
+                    className={`h-1.5 rounded-full transition-all duration-500 ${
+                      index === currentIndex ? 'w-8 bg-gold' : 'w-2 bg-white/40 hover:bg-white/60'
+                    }`}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ) : (
-          <img 
-            src="https://images.unsplash.com/photo-1707343843437-caacff5cfa74?auto=format&fit=crop&q=80&w=2000" 
-            alt="New Oak Heights Luxury Architecture" 
+          <img
+            src={defaultImage}
+            alt="New Oak Heights Luxury Architecture"
             className="w-full h-full object-cover"
           />
         )}
