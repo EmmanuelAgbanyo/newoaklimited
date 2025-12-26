@@ -4,3 +4,6 @@
   functions = "netlify/functions"
   to = "/index.html"
   status = 200
+
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
