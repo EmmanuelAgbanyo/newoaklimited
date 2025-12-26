@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Plus, Trash2, Edit3, Home, Users, LayoutDashboard, LogOut, Check, X, 
+import {
+  Plus, Trash2, Edit3, Home, Users, LayoutDashboard, LogOut, Check, X,
   Search, Filter, Settings, Eye, EyeOff, Upload, FileImage, Link as LinkIcon,
   TrendingUp, BarChart3, Activity, Clock, MoreVertical, Star, ShieldCheck, Video, RefreshCw, Save,
   AlertTriangle, Database, Cpu, PanelLeftClose, PanelLeftOpen, Building2, Calendar, MapPin, Loader2, Image as ImageIcon,
-  GripVertical, ChevronDown, ChevronRight, Mail, Lock
+  GripVertical, ChevronDown, ChevronRight, Mail, Lock, Hammer, FileText, Newspaper
 } from 'lucide-react';
 import { INITIAL_PROPERTIES } from '../constants';
-import { Property, PropertyCategory, Booking, BookingStatus } from '../types';
+import { Property, PropertyCategory, Booking, BookingStatus, UpcomingProject, ProjectStatus, BlogPost } from '../types';
 import { Logo } from '../components/Logo';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
@@ -28,7 +28,7 @@ export const Admin: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'properties' | 'visits' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'properties' | 'visits' | 'projects' | 'blog' | 'settings'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   
@@ -49,6 +49,22 @@ export const Admin: React.FC = () => {
   // Inquiry State
   const [inquiries, setInquiries] = useState<Booking[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Upcoming Projects State
+  const [upcomingProjects, setUpcomingProjects] = useState<UpcomingProject[]>([]);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<UpcomingProject | null>(null);
+  const [projectFormImages, setProjectFormImages] = useState<string[]>([]);
+  const [projectHighlights, setProjectHighlights] = useState<string[]>([]);
+  const projectImageInputRef = useRef<HTMLInputElement>(null);
+
+  // Blog State
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
+  const [editingBlogPost, setEditingBlogPost] = useState<BlogPost | null>(null);
+  const [blogCoverImage, setBlogCoverImage] = useState<string>('');
+  const [blogTags, setBlogTags] = useState<string[]>([]);
+  const blogCoverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -102,11 +118,43 @@ export const Admin: React.FC = () => {
       setHasCustomVideo(!!snapshot.val());
     });
 
+    // Upcoming Projects Listener
+    const projectsRef = ref(db, 'upcomingProjects');
+    const unsubscribeProjects = onValue(projectsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        }));
+        setUpcomingProjects(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      } else {
+        setUpcomingProjects([]);
+      }
+    });
+
+    // Blog Posts Listener
+    const blogRef = ref(db, 'blogPosts');
+    const unsubscribeBlog = onValue(blogRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        }));
+        setBlogPosts(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      } else {
+        setBlogPosts([]);
+      }
+    });
+
     return () => {
       unsubscribeProps();
       unsubscribeInquiries();
       unsubscribeHero();
       unsubscribeVideo();
+      unsubscribeProjects();
+      unsubscribeBlog();
     };
   }, [isAuthenticated]);
 
@@ -305,20 +353,205 @@ export const Admin: React.FC = () => {
     }
   };
 
+  // Upcoming Projects Functions
+  const openProjectModal = (project?: UpcomingProject) => {
+    if (project) {
+      setEditingProject(project);
+      setProjectFormImages([...project.images]);
+      setProjectHighlights([...(project.highlights || [])]);
+    } else {
+      setEditingProject(null);
+      setProjectFormImages([]);
+      setProjectHighlights([]);
+    }
+    setIsProjectModalOpen(true);
+  };
+
+  const handleProjectSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const projectData = {
+      title: formData.get('title') as string,
+      description: formData.get('description') as string,
+      location: formData.get('location') as string,
+      expectedCompletion: formData.get('expectedCompletion') as string,
+      status: formData.get('status') as ProjectStatus,
+      estimatedUnits: Number(formData.get('estimatedUnits')) || undefined,
+      featured: formData.get('featured') === 'on',
+      images: projectFormImages.length > 0 ? projectFormImages : ['https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=1200'],
+      highlights: projectHighlights.filter(h => h.trim() !== ''),
+      createdAt: editingProject?.createdAt || new Date().toISOString(),
+    };
+
+    if (editingProject) {
+      const projectRef = ref(db, `upcomingProjects/${editingProject.id}`);
+      await update(projectRef, projectData);
+    } else {
+      const projectsRef = ref(db, 'upcomingProjects');
+      const newProjectRef = push(projectsRef);
+      await set(newProjectRef, projectData);
+    }
+
+    setIsProjectModalOpen(false);
+    setEditingProject(null);
+    setProjectFormImages([]);
+    setProjectHighlights([]);
+  };
+
+  const deleteProject = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this project?")) {
+      const projectRef = ref(db, `upcomingProjects/${id}`);
+      await remove(projectRef);
+    }
+  };
+
+  const addProjectImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setProjectFormImages(prev => [...prev, base64]);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const removeProjectImage = (index: number) => {
+    setProjectFormImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addHighlight = () => {
+    setProjectHighlights(prev => [...prev, '']);
+  };
+
+  const updateHighlight = (index: number, value: string) => {
+    setProjectHighlights(prev => prev.map((h, i) => i === index ? value : h));
+  };
+
+  const removeHighlight = (index: number) => {
+    setProjectHighlights(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Blog Functions
+  const generateSlug = (title: string): string => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  };
+
+  const openBlogModal = (post?: BlogPost) => {
+    if (post) {
+      setEditingBlogPost(post);
+      setBlogCoverImage(post.coverImage || '');
+      setBlogTags([...(post.tags || [])]);
+    } else {
+      setEditingBlogPost(null);
+      setBlogCoverImage('');
+      setBlogTags([]);
+    }
+    setIsBlogModalOpen(true);
+  };
+
+  const handleBlogSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const title = formData.get('title') as string;
+
+    const blogData = {
+      title,
+      slug: editingBlogPost?.slug || generateSlug(title),
+      excerpt: formData.get('excerpt') as string,
+      content: formData.get('content') as string,
+      author: formData.get('author') as string,
+      category: formData.get('category') as string,
+      coverImage: blogCoverImage || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=1200',
+      tags: blogTags.filter(t => t.trim() !== ''),
+      published: formData.get('published') === 'on',
+      publishedAt: editingBlogPost?.publishedAt || new Date().toISOString(),
+      createdAt: editingBlogPost?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (editingBlogPost) {
+      const blogRef = ref(db, `blogPosts/${editingBlogPost.id}`);
+      await update(blogRef, blogData);
+    } else {
+      const blogsRef = ref(db, 'blogPosts');
+      const newBlogRef = push(blogsRef);
+      await set(newBlogRef, blogData);
+    }
+
+    setIsBlogModalOpen(false);
+    setEditingBlogPost(null);
+    setBlogCoverImage('');
+    setBlogTags([]);
+  };
+
+  const deleteBlogPost = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this blog post?")) {
+      const blogRef = ref(db, `blogPosts/${id}`);
+      await remove(blogRef);
+    }
+  };
+
+  const handleBlogCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setBlogCoverImage(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const addTag = () => {
+    setBlogTags(prev => [...prev, '']);
+  };
+
+  const updateTag = (index: number, value: string) => {
+    setBlogTags(prev => prev.map((t, i) => i === index ? value : t));
+  };
+
+  const removeTag = (index: number) => {
+    setBlogTags(prev => prev.filter((_, i) => i !== index));
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-    { 
-      id: 'properties', 
-      label: 'Assets', 
+    {
+      id: 'properties',
+      label: 'Assets',
       icon: Building2,
       children: [
         { label: 'View Portfolio', action: () => setActiveTab('properties') },
         { label: 'Register New', action: () => openPropertyModal() }
       ]
     },
-    { 
-      id: 'visits', 
-      label: 'Inquiries', 
+    {
+      id: 'projects',
+      label: 'Projects',
+      icon: Hammer,
+      children: [
+        { label: 'View All', action: () => setActiveTab('projects') },
+        { label: 'Add New', action: () => openProjectModal() }
+      ]
+    },
+    {
+      id: 'blog',
+      label: 'Blog',
+      icon: Newspaper,
+      children: [
+        { label: 'All Posts', action: () => setActiveTab('blog') },
+        { label: 'Create Post', action: () => openBlogModal() }
+      ]
+    },
+    {
+      id: 'visits',
+      label: 'Inquiries',
       icon: Calendar,
       children: [
         { label: 'All Records', action: () => setActiveTab('visits') },
@@ -489,6 +722,198 @@ export const Admin: React.FC = () => {
               </div>
               <button type="submit" className="w-full bg-gold text-white py-5 rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
                 {editingProperty ? 'Commit Update' : 'Initialize Asset Entry'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Project Modal */}
+      {isProjectModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-oak/60 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 my-auto">
+            <div className="bg-oak p-6 flex justify-between items-center text-white">
+              <h3 className="font-serif text-xl">{editingProject ? 'Edit Project' : 'Add New Project'}</h3>
+              <button onClick={() => {setIsProjectModalOpen(false); setEditingProject(null); setProjectFormImages([]); setProjectHighlights([]);}}><X /></button>
+            </div>
+            <form onSubmit={handleProjectSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Project Title</label>
+                  <input name="title" defaultValue={editingProject?.title} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Location</label>
+                  <input name="location" defaultValue={editingProject?.location} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Status</label>
+                  <select name="status" defaultValue={editingProject?.status || ProjectStatus.PLANNING} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none">
+                    {Object.values(ProjectStatus).map(status => <option key={status} value={status}>{status}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Expected Completion</label>
+                  <input name="expectedCompletion" defaultValue={editingProject?.expectedCompletion} placeholder="Q4 2025" required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Estimated Units</label>
+                  <input name="estimatedUnits" type="number" defaultValue={editingProject?.estimatedUnits} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Description</label>
+                  <textarea name="description" defaultValue={editingProject?.description} rows={3} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" />
+                </div>
+              </div>
+
+              {/* Highlights */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Project Highlights</label>
+                  <button type="button" onClick={addHighlight} className="flex items-center space-x-2 text-gold text-[10px] uppercase font-bold tracking-widest hover:text-gold-dark transition-colors">
+                    <Plus size={14} />
+                    <span>Add Highlight</span>
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {projectHighlights.map((highlight, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={highlight}
+                        onChange={(e) => updateHighlight(index, e.target.value)}
+                        placeholder="e.g., 24-hour security"
+                        className="flex-grow bg-gray-50 border border-gray-100 p-3 rounded-xl text-sm focus:border-gold focus:outline-none"
+                      />
+                      <button type="button" onClick={() => removeHighlight(index)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Images */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Project Images</label>
+                  <button type="button" onClick={() => projectImageInputRef.current?.click()} className="flex items-center space-x-2 text-gold text-[10px] uppercase font-bold tracking-widest hover:text-gold-dark transition-colors">
+                    <Plus size={14} />
+                    <span>Add Image</span>
+                  </button>
+                  <input type="file" ref={projectImageInputRef} className="hidden" accept="image/*" onChange={addProjectImage} />
+                </div>
+                <div className="grid grid-cols-3 gap-4 min-h-[80px] p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                  {projectFormImages.map((img, index) => (
+                    <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border-2 border-white shadow-sm">
+                      <img src={img} className="w-full h-full object-cover" alt="" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button type="button" onClick={() => removeProjectImage(index)} className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <input name="featured" type="checkbox" defaultChecked={editingProject?.featured} className="w-4 h-4 text-gold border-gray-300 rounded focus:ring-gold" id="project-feat-check" />
+                <label htmlFor="project-feat-check" className="text-xs font-bold uppercase tracking-widest text-oak">Feature on Homepage</label>
+              </div>
+              <button type="submit" className="w-full bg-gold text-white py-5 rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
+                {editingProject ? 'Update Project' : 'Create Project'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Blog Modal */}
+      {isBlogModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-oak/60 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 my-auto">
+            <div className="bg-oak p-6 flex justify-between items-center text-white">
+              <h3 className="font-serif text-xl">{editingBlogPost ? 'Edit Blog Post' : 'Create New Post'}</h3>
+              <button onClick={() => {setIsBlogModalOpen(false); setEditingBlogPost(null); setBlogCoverImage(''); setBlogTags([]);}}><X /></button>
+            </div>
+            <form onSubmit={handleBlogSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Title</label>
+                  <input name="title" defaultValue={editingBlogPost?.title} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Author</label>
+                  <input name="author" defaultValue={editingBlogPost?.author || 'NewOak Team'} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Category</label>
+                  <input name="category" defaultValue={editingBlogPost?.category} placeholder="e.g., Market Insights" required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Excerpt (Short Summary)</label>
+                  <textarea name="excerpt" defaultValue={editingBlogPost?.excerpt} rows={2} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Content</label>
+                  <textarea name="content" defaultValue={editingBlogPost?.content} rows={8} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" placeholder="Write your blog post content here. Use new lines to separate paragraphs." />
+                </div>
+              </div>
+
+              {/* Cover Image */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Cover Image</label>
+                  <button type="button" onClick={() => blogCoverInputRef.current?.click()} className="flex items-center space-x-2 text-gold text-[10px] uppercase font-bold tracking-widest hover:text-gold-dark transition-colors">
+                    <Upload size={14} />
+                    <span>Upload Image</span>
+                  </button>
+                  <input type="file" ref={blogCoverInputRef} className="hidden" accept="image/*" onChange={handleBlogCoverUpload} />
+                </div>
+                {blogCoverImage && (
+                  <div className="relative w-full h-40 rounded-xl overflow-hidden">
+                    <img src={blogCoverImage} className="w-full h-full object-cover" alt="Cover" />
+                    <button type="button" onClick={() => setBlogCoverImage('')} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Tags */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Tags</label>
+                  <button type="button" onClick={addTag} className="flex items-center space-x-2 text-gold text-[10px] uppercase font-bold tracking-widest hover:text-gold-dark transition-colors">
+                    <Plus size={14} />
+                    <span>Add Tag</span>
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {blogTags.map((tag, index) => (
+                    <div key={index} className="flex items-center space-x-1 bg-gray-50 rounded-full px-3 py-1">
+                      <input
+                        type="text"
+                        value={tag}
+                        onChange={(e) => updateTag(index, e.target.value)}
+                        placeholder="Tag"
+                        className="bg-transparent text-sm focus:outline-none w-20"
+                      />
+                      <button type="button" onClick={() => removeTag(index)} className="text-red-500 hover:text-red-600">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <input name="published" type="checkbox" defaultChecked={editingBlogPost?.published ?? true} className="w-4 h-4 text-gold border-gray-300 rounded focus:ring-gold" id="publish-check" />
+                <label htmlFor="publish-check" className="text-xs font-bold uppercase tracking-widest text-oak">Publish Immediately</label>
+              </div>
+              <button type="submit" className="w-full bg-gold text-white py-5 rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
+                {editingBlogPost ? 'Update Post' : 'Publish Post'}
               </button>
             </form>
           </div>
@@ -733,6 +1158,143 @@ export const Admin: React.FC = () => {
                   <Calendar size={48} className="text-gray-100 mb-6" />
                   <h3 className="font-serif text-2xl text-oak mb-2">No Passive Records</h3>
                   <p className="text-gray-400 text-xs max-w-sm">Passive monitoring is active. New public inquiries will appear here automatically.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'projects' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="p-8 border-b border-gray-100 flex justify-between items-center">
+                <div>
+                  <h3 className="font-serif text-xl text-oak">Upcoming Projects</h3>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Manage development pipeline</p>
+                </div>
+                <button onClick={() => openProjectModal()} className="bg-gold text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center space-x-2 hover:bg-gold-dark transition-all">
+                  <Plus size={16} />
+                  <span>New Project</span>
+                </button>
+              </div>
+              {upcomingProjects.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 text-[10px] uppercase tracking-widest text-gray-400">
+                        <th className="px-8 py-4 font-bold">Project</th>
+                        <th className="px-8 py-4 font-bold">Status</th>
+                        <th className="px-8 py-4 font-bold">Location</th>
+                        <th className="px-8 py-4 font-bold">Expected</th>
+                        <th className="px-8 py-4 font-bold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {upcomingProjects.map(project => (
+                        <tr key={project.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-8 py-6">
+                            <div className="flex items-center space-x-4">
+                              <img src={project.images[0]} className="w-12 h-12 rounded-lg object-cover" alt="" />
+                              <div>
+                                <p className="text-sm font-bold text-oak">{project.title}</p>
+                                <p className="text-[10px] text-gray-400">{project.featured ? '⭐ Featured' : ''}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className={`text-[10px] font-bold uppercase tracking-tighter px-3 py-1 rounded-full ${
+                              project.status === ProjectStatus.IN_PROGRESS ? 'bg-gold/20 text-gold' :
+                              project.status === ProjectStatus.COMING_SOON ? 'bg-green-100 text-green-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>{project.status}</span>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex items-center space-x-1 text-xs text-gray-500">
+                              <MapPin size={12} className="text-gold" />
+                              <span>{project.location}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 text-xs text-gray-500">{project.expectedCompletion}</td>
+                          <td className="px-8 py-6 text-right space-x-2">
+                            <Link to="/upcoming-projects" target="_blank" className="inline-block p-2 text-gray-400 hover:text-gold transition-colors"><Eye size={18} /></Link>
+                            <button onClick={() => openProjectModal(project)} className="p-2 text-gray-400 hover:text-gold transition-colors"><Edit3 size={18} /></button>
+                            <button onClick={() => deleteProject(project.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-32 text-center">
+                  <Hammer size={48} className="text-gray-100 mb-6" />
+                  <h3 className="font-serif text-2xl text-oak mb-2">No Projects Yet</h3>
+                  <p className="text-gray-400 text-xs max-w-sm">Add your first upcoming project to showcase your development pipeline.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'blog' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="p-8 border-b border-gray-100 flex justify-between items-center">
+                <div>
+                  <h3 className="font-serif text-xl text-oak">Blog Posts</h3>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Manage articles and insights</p>
+                </div>
+                <button onClick={() => openBlogModal()} className="bg-gold text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center space-x-2 hover:bg-gold-dark transition-all">
+                  <Plus size={16} />
+                  <span>New Post</span>
+                </button>
+              </div>
+              {blogPosts.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50 text-[10px] uppercase tracking-widest text-gray-400">
+                        <th className="px-8 py-4 font-bold">Article</th>
+                        <th className="px-8 py-4 font-bold">Category</th>
+                        <th className="px-8 py-4 font-bold">Author</th>
+                        <th className="px-8 py-4 font-bold">Status</th>
+                        <th className="px-8 py-4 font-bold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {blogPosts.map(post => (
+                        <tr key={post.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-8 py-6">
+                            <div className="flex items-center space-x-4">
+                              <img src={post.coverImage} className="w-12 h-12 rounded-lg object-cover" alt="" />
+                              <div>
+                                <p className="text-sm font-bold text-oak line-clamp-1">{post.title}</p>
+                                <p className="text-[10px] text-gray-400">{new Date(post.publishedAt).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className="text-[10px] font-bold uppercase tracking-tighter bg-gray-100 px-3 py-1 rounded-full text-gray-500">{post.category}</span>
+                          </td>
+                          <td className="px-8 py-6 text-xs text-gray-500">{post.author}</td>
+                          <td className="px-8 py-6">
+                            <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${post.published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {post.published ? 'Published' : 'Draft'}
+                            </span>
+                          </td>
+                          <td className="px-8 py-6 text-right space-x-2">
+                            {post.published && (
+                              <Link to={`/blog/${post.slug}`} target="_blank" className="inline-block p-2 text-gray-400 hover:text-gold transition-colors"><Eye size={18} /></Link>
+                            )}
+                            <button onClick={() => openBlogModal(post)} className="p-2 text-gray-400 hover:text-gold transition-colors"><Edit3 size={18} /></button>
+                            <button onClick={() => deleteBlogPost(post.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-32 text-center">
+                  <FileText size={48} className="text-gray-100 mb-6" />
+                  <h3 className="font-serif text-2xl text-oak mb-2">No Blog Posts Yet</h3>
+                  <p className="text-gray-400 text-xs max-w-sm">Create your first blog post to share insights and updates with your audience.</p>
                 </div>
               )}
             </div>

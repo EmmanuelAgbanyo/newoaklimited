@@ -46,3 +46,39 @@ export interface User {
   id: string;
   role: 'admin' | 'guest';
 }
+
+export enum ProjectStatus {
+  PLANNING = 'Planning',
+  IN_PROGRESS = 'In Progress',
+  COMING_SOON = 'Coming Soon'
+}
+
+export interface UpcomingProject {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  expectedCompletion: string;
+  status: ProjectStatus;
+  images: string[];
+  highlights: string[];
+  estimatedUnits?: number;
+  featured: boolean;
+  createdAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  coverImage: string;
+  author: string;
+  category: string;
+  tags: string[];
+  published: boolean;
+  publishedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
