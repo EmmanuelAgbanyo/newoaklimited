@@ -14,9 +14,9 @@ export interface Property {
   description: string;
   images: string[];
   category: PropertyCategory;
-  beds: number;
-  baths: number;
-  sqft: number;
+  beds?: number;
+  baths?: number;
+  sqft?: number;
   featured: boolean;
   coordinates?: {
     lat: number;
@@ -81,4 +81,34 @@ export interface BlogPost {
   publishedAt: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  image: string;
+  linkedin?: string;
+  email?: string;
+  createdAt: string;
+}
+
+export interface GalleryItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  isMain?: boolean; // If true, takes the large 2x2 slot
+  createdAt: string;
+}
+
+export interface ServiceItem {
+  id: string;
+  title: string;
+  description: string;
+  features: string[];
+  image: string;
+  icon: string; // 'Shield', 'TrendingUp', 'Landmark', 'Key', 'Briefcase', 'Globe', 'Zap', 'Award'
+  order?: number;
 }

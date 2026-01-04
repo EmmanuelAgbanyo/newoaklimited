@@ -1,10 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  MessageSquare, Send, X, Bot, Loader2, ExternalLink, MapPin, 
-  Mic, Camera, Sparkles, Volume2, Building2, 
+import {
+  MessageSquare, Send, X, Bot, Loader2, ExternalLink, MapPin,
+  Mic, Camera, Sparkles, Volume2, Building2,
   Maximize2, Minimize2, Calendar, Phone, Zap, ShieldCheck
 } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 import { geminiService, GroundingSource } from '../services/geminiService';
 import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
 
@@ -67,6 +68,7 @@ function createBlob(data: Float32Array): any {
 }
 
 export const Chatbot: React.FC = () => {
+  const { properties, team } = useData();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [mode, setMode] = useState<'text' | 'voice'>('text');
@@ -77,7 +79,7 @@ export const Chatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | undefined>();
   const [pendingImage, setPendingImage] = useState<string | null>(null);
-  
+
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [nextStartTime, setNextStartTime] = useState(0);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -121,9 +123,9 @@ export const Chatbot: React.FC = () => {
     const currentImage = pendingImage;
     setInput('');
     setPendingImage(null);
-    
-    setMessages(prev => [...prev, { 
-      role: 'user', 
+
+    setMessages(prev => [...prev, {
+      role: 'user',
       content: userMsg || "Analyze this architectural feature.",
       image: currentImage || undefined
     }]);
@@ -141,10 +143,11 @@ export const Chatbot: React.FC = () => {
       }
     } : undefined;
 
-    const response = await geminiService.generateChatResponse(userMsg, history, userCoords, imagePart);
-    
-    setMessages(prev => [...prev, { 
-      role: 'model', 
+    const context = { properties, team };
+    const response = await geminiService.generateChatResponse(userMsg, history, userCoords, imagePart, context);
+
+    setMessages(prev => [...prev, {
+      role: 'model',
       content: response.text,
       sources: response.sources
     }]);
@@ -233,14 +236,14 @@ export const Chatbot: React.FC = () => {
   return (
     <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-[100] flex flex-col items-end pointer-events-none p-4 sm:p-0 overflow-hidden sm:overflow-visible">
       {isOpen && (
-        <div 
+        <div
           role="dialog"
           aria-label="NewOak Assistant"
           className={`
             pointer-events-auto
             flex flex-col bg-white overflow-hidden shadow-2xl chat-window-transition
-            ${isMinimized 
-              ? 'h-14 w-64 rounded-xl mb-4 border border-oak/10' 
+            ${isMinimized
+              ? 'h-14 w-64 rounded-xl mb-4 border border-oak/10'
               : 'h-[85dvh] w-[92vw] sm:h-[650px] sm:w-[420px] sm:rounded-2xl border border-oak/5'}
           `}
         >
@@ -259,9 +262,9 @@ export const Chatbot: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-1">
-              <button 
+              <button
                 onClick={() => {
                   if (mode === 'text') { setMode('voice'); startLiveSession(); }
                   else { stopLiveSession(); setMode('text'); }
@@ -271,15 +274,15 @@ export const Chatbot: React.FC = () => {
               >
                 <Volume2 size={18} />
               </button>
-              <button 
-                onClick={() => setIsMinimized(!isMinimized)} 
+              <button
+                onClick={() => setIsMinimized(!isMinimized)}
                 className="hover:bg-white/5 p-2 rounded-full hidden sm:block text-gray-400"
                 aria-label={isMinimized ? "Maximize" : "Minimize"}
               >
                 {isMinimized ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
               </button>
-              <button 
-                onClick={() => setIsOpen(false)} 
+              <button
+                onClick={() => setIsOpen(false)}
                 className="hover:bg-white/5 p-2 rounded-full text-gray-400"
                 aria-label="Close assistant"
               >
@@ -314,11 +317,10 @@ export const Chatbot: React.FC = () => {
                       <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
                         <div className={`max-w-[85%] flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                           {msg.image && <img src={msg.image} className="mb-3 rounded-xl border border-gray-100 shadow-md max-w-[200px]" alt="Uploaded scan" />}
-                          <div className={`p-4 text-[13px] leading-relaxed tracking-wide shadow-sm ${
-                            msg.role === 'user' 
-                              ? 'bg-oak text-white rounded-[20px_20px_4px_20px]' 
+                          <div className={`p-4 text-[13px] leading-relaxed tracking-wide shadow-sm ${msg.role === 'user'
+                              ? 'bg-oak text-white rounded-[20px_20px_4px_20px]'
                               : 'bg-white text-oak border border-gray-100 rounded-[20px_20px_20px_4px]'
-                          }`}>
+                            }`}>
                             {msg.content}
                             {msg.sources && msg.sources.length > 0 && (
                               <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
@@ -358,9 +360,9 @@ export const Chatbot: React.FC = () => {
                   <div className="bg-white border-t border-gray-100 p-4 sm:p-5 space-y-4 shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
                     <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
                       {quickActions.map((action, idx) => (
-                        <button 
-                          key={idx} 
-                          onClick={() => handleSend(action.text)} 
+                        <button
+                          key={idx}
+                          onClick={() => handleSend(action.text)}
                           className="flex items-center space-x-2 bg-gray-50 hover:bg-white hover:border-gold hover:text-gold border border-gray-200 px-4 py-2.5 rounded-full text-[10px] whitespace-nowrap transition-all text-gray-500 font-bold uppercase tracking-widest"
                         >
                           <action.icon size={12} className="text-gold" />
@@ -370,8 +372,8 @@ export const Chatbot: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-3">
-                      <button 
-                        onClick={() => fileInputRef.current?.click()} 
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
                         className="text-gray-400 hover:text-gold hover:bg-gold/10 p-3 rounded-xl transition-all shrink-0"
                         title="Analyze architectural feature"
                       >
@@ -379,7 +381,7 @@ export const Chatbot: React.FC = () => {
                       </button>
                       <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                       <div className="flex-grow relative">
-                        <input 
+                        <input
                           value={input}
                           onChange={(e) => setInput(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
@@ -387,7 +389,7 @@ export const Chatbot: React.FC = () => {
                           className="w-full bg-gray-50 border-2 border-transparent focus:border-gold/20 rounded-2xl py-3.5 pl-5 pr-12 text-[14px] focus:ring-0 transition-all font-light"
                           aria-label="Type message"
                         />
-                        <button 
+                        <button
                           onClick={() => handleSend()}
                           disabled={isLoading || (!input.trim() && !pendingImage)}
                           className={`absolute right-1 top-1/2 -translate-y-1/2 p-2.5 transition-all ${isLoading || (!input.trim() && !pendingImage) ? 'text-gray-300' : 'text-gold active:scale-90 hover:bg-gold/10 rounded-xl'}`}
@@ -407,7 +409,7 @@ export const Chatbot: React.FC = () => {
 
       {/* Floating Trigger Button */}
       {!isMinimized && (
-        <button 
+        <button
           onClick={() => setIsOpen(!isOpen)}
           className={`
             pointer-events-auto

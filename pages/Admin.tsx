@@ -5,44 +5,73 @@ import {
   Search, Filter, Settings, Eye, EyeOff, Upload, FileImage, Link as LinkIcon,
   TrendingUp, BarChart3, Activity, Clock, MoreVertical, Star, ShieldCheck, Video, RefreshCw, Save,
   AlertTriangle, Database, Cpu, PanelLeftClose, PanelLeftOpen, Building2, Calendar, MapPin, Loader2, Image as ImageIcon,
-  GripVertical, ChevronDown, ChevronRight, Mail, Lock, Hammer, FileText, Newspaper
+  GripVertical, ChevronDown, ChevronRight, Mail, Lock, Hammer, FileText, Newspaper, Layers
 } from 'lucide-react';
 import { INITIAL_PROPERTIES } from '../constants';
-import { Property, PropertyCategory, Booking, BookingStatus, UpcomingProject, ProjectStatus, BlogPost } from '../types';
+import { Property, PropertyCategory, Booking, BookingStatus, UpcomingProject, ProjectStatus, BlogPost, TeamMember, GalleryItem, ServiceItem } from '../types';
 import { Logo } from '../components/Logo';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import { ref, onValue, set, push, remove, update } from 'firebase/database';
 
+const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
+
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const heroImageInputRef = useRef<HTMLInputElement>(null);
   const corporateVideoInputRef = useRef<HTMLInputElement>(null);
   const propertyImageInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'properties' | 'visits' | 'projects' | 'blog' | 'settings'>('dashboard');
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'properties' | 'visits' | 'projects' | 'blog' | 'team' | 'gallery' | 'services' | 'settings'>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
-  
+
   const [isHeroUploading, setIsHeroUploading] = useState(false);
   const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomVideo, setHasCustomVideo] = useState(false);
   const [heroImages, setHeroImages] = useState<string[]>([]);
-  
+
   // Property State
   const [properties, setProperties] = useState<Property[]>([]);
   const [isPropertyModalOpen, setIsPropertyModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-  
+
   // Modal specific image management
   const [formImages, setFormImages] = useState<string[]>([]);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
@@ -66,6 +95,28 @@ export const Admin: React.FC = () => {
   const [blogCoverImage, setBlogCoverImage] = useState<string>('');
   const [blogTags, setBlogTags] = useState<string[]>([]);
   const blogCoverInputRef = useRef<HTMLInputElement>(null);
+
+  // Team State
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [editingTeamMember, setEditingTeamMember] = useState<TeamMember | null>(null);
+  const [teamImage, setTeamImage] = useState<string>('');
+  const teamImageInputRef = useRef<HTMLInputElement>(null);
+
+  // Gallery State
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
+  const [galleryImage, setGalleryImage] = useState<string>('');
+  const galleryImageInputRef = useRef<HTMLInputElement>(null);
+
+  // Services State
+  const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+  const [editingServiceItem, setEditingServiceItem] = useState<ServiceItem | null>(null);
+  const [serviceImage, setServiceImage] = useState<string>('');
+  const [serviceFeatures, setServiceFeatures] = useState<string[]>([]);
+  const serviceImageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -156,13 +207,62 @@ export const Admin: React.FC = () => {
       }
     });
 
+    // Team Listener
+    const teamRef = ref(db, 'team');
+    const unsubscribeTeam = onValue(teamRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        }));
+        setTeamMembers(list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+      } else {
+        setTeamMembers([]);
+      }
+    });
+
+    // Gallery Listener
+    const galleryRef = ref(db, 'designGallery');
+    const unsubscribeGallery = onValue(galleryRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        }));
+        setGalleryItems(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      } else {
+        setGalleryItems([]);
+      }
+    });
+
+    // Services Listener
+    const servicesRef = ref(db, 'services');
+    const unsubscribeServices = onValue(servicesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        }));
+        setServiceItems(list.sort((a, b) => (a.order || 0) - (b.order || 0)));
+      } else {
+        setServiceItems([]);
+      }
+    });
+
     return () => {
       unsubscribeProps();
       unsubscribeInquiries();
       unsubscribeHero();
       unsubscribeVideo();
       unsubscribeProjects();
+      unsubscribeProjects();
       unsubscribeBlog();
+      unsubscribeTeam();
+      unsubscribeGallery();
+      unsubscribeServices();
     };
   }, [isAuthenticated]);
 
@@ -227,15 +327,15 @@ export const Admin: React.FC = () => {
   const handlePropertySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
+
     const propertyData = {
       title: formData.get('title') as string,
       price: Number(formData.get('price')),
       location: formData.get('location') as string,
       description: formData.get('description') as string,
-      beds: Number(formData.get('beds')),
-      baths: Number(formData.get('baths')),
-      sqft: Number(formData.get('sqft')),
+      beds: formData.get('beds') ? Number(formData.get('beds')) : undefined,
+      baths: formData.get('baths') ? Number(formData.get('baths')) : undefined,
+      sqft: formData.get('sqft') ? Number(formData.get('sqft')) : undefined,
       category: formData.get('category') as PropertyCategory,
       featured: formData.get('featured') === 'on',
       images: formImages.length > 0 ? formImages : ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1200'],
@@ -542,6 +642,182 @@ export const Admin: React.FC = () => {
     setBlogTags(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Team Functions
+  const openTeamModal = (member?: TeamMember) => {
+    if (member) {
+      setEditingTeamMember(member);
+      setTeamImage(member.image || '');
+    } else {
+      setEditingTeamMember(null);
+      setTeamImage('');
+    }
+    setIsTeamModalOpen(true);
+  };
+
+  const handleTeamSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const teamData = {
+      name: formData.get('name') as string,
+      role: formData.get('role') as string,
+      bio: formData.get('bio') as string,
+      image: teamImage || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=800',
+      linkedin: formData.get('linkedin') as string,
+      email: formData.get('email') as string,
+      createdAt: editingTeamMember?.createdAt || new Date().toISOString(),
+    };
+
+    if (editingTeamMember) {
+      const memberRef = ref(db, `team/${editingTeamMember.id}`);
+      await update(memberRef, teamData);
+    } else {
+      const teamRef = ref(db, 'team');
+      const newMemberRef = push(teamRef);
+      await set(newMemberRef, teamData);
+    }
+
+    setIsTeamModalOpen(false);
+    setEditingTeamMember(null);
+    setTeamImage('');
+  };
+
+  const deleteTeamMember = async (id: string) => {
+    if (window.confirm("Are you sure you want to remove this team member?")) {
+      const memberRef = ref(db, `team/${id}`);
+      await remove(memberRef);
+    }
+  };
+
+  const handleTeamImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImage(file);
+      setTeamImage(compressed);
+    } catch (error) {
+      console.error('Error compressing image:', error);
+    }
+    e.target.value = '';
+  };
+
+  // Gallery Management
+  const openGalleryModal = (item?: GalleryItem) => {
+    if (item) {
+      setEditingGalleryItem(item);
+      setGalleryImage(item.image);
+    } else {
+      setEditingGalleryItem(null);
+      setGalleryImage('');
+    }
+    setIsGalleryModalOpen(true);
+  };
+
+  const deleteGalleryItem = async (id: string) => {
+    if (window.confirm('Are you sure you want to remove this image from the gallery?')) {
+      const itemRef = ref(db, `designGallery/${id}`);
+      await remove(itemRef);
+    }
+  };
+
+  const handleGallerySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const title = (form.elements.namedItem('title') as HTMLInputElement).value;
+    const subtitle = (form.elements.namedItem('subtitle') as HTMLInputElement).value;
+    const isMain = (form.elements.namedItem('isMain') as HTMLInputElement).checked;
+
+    const itemData: Partial<GalleryItem> = {
+      title,
+      subtitle,
+      image: galleryImage || 'https://images.unsplash.com/photo-1600607686527-6fb886090705?auto=format&fit=crop&q=80&w=800',
+      isMain,
+      createdAt: editingGalleryItem ? editingGalleryItem.createdAt : new Date().toISOString()
+    };
+
+    if (editingGalleryItem) {
+      const itemRef = ref(db, `designGallery/${editingGalleryItem.id}`);
+      await update(itemRef, itemData);
+    } else {
+      const itemsRef = ref(db, 'designGallery');
+      const newItemRef = push(itemsRef);
+      await set(newItemRef, itemData);
+    }
+    setIsGalleryModalOpen(false);
+  };
+
+  const handleGalleryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImage(file);
+        setGalleryImage(compressed);
+      } catch (error) {
+        console.error('Error compressing gallery image:', error);
+      }
+    }
+  };
+
+  // Service Management
+  const openServiceModal = (item?: ServiceItem) => {
+    if (item) {
+      setEditingServiceItem(item);
+      setServiceImage(item.image);
+      setServiceFeatures(item.features || []);
+    } else {
+      setEditingServiceItem(null);
+      setServiceImage('');
+      setServiceFeatures([]);
+    }
+    setIsServiceModalOpen(true);
+  };
+
+  const deleteService = async (id: string) => {
+    if (window.confirm('Are you sure you want to remove this service?')) {
+      const itemRef = ref(db, `services/${id}`);
+      await remove(itemRef);
+    }
+  };
+
+  const handleServiceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const title = (form.elements.namedItem('title') as HTMLInputElement).value;
+    const description = (form.elements.namedItem('description') as HTMLTextAreaElement).value;
+    const icon = (form.elements.namedItem('icon') as HTMLSelectElement).value;
+
+    const itemData: Partial<ServiceItem> = {
+      title,
+      description,
+      features: serviceFeatures,
+      image: serviceImage || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800',
+      icon,
+      order: editingServiceItem ? editingServiceItem.order : serviceItems.length + 1
+    };
+
+    if (editingServiceItem) {
+      const itemRef = ref(db, `services/${editingServiceItem.id}`);
+      await update(itemRef, itemData);
+    } else {
+      const itemsRef = ref(db, 'services');
+      const newItemRef = push(itemsRef);
+      await set(newItemRef, itemData);
+    }
+    setIsServiceModalOpen(false);
+  };
+
+  const handleServiceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImage(file);
+        setServiceImage(compressed);
+      } catch (error) {
+        console.error('Error compressing service image:', error);
+      }
+    }
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     {
@@ -580,6 +856,33 @@ export const Admin: React.FC = () => {
         { label: 'Confirmed', action: () => setActiveTab('visits') }
       ]
     },
+    {
+      id: 'team',
+      label: 'Team',
+      icon: Users,
+      children: [
+        { label: 'View All', action: () => setActiveTab('team') },
+        { label: 'Add Member', action: () => openTeamModal() }
+      ]
+    },
+    {
+      id: 'gallery',
+      label: 'Design Gallery',
+      icon: ImageIcon,
+      children: [
+        { label: 'View Gallery', action: () => setActiveTab('gallery') },
+        { label: 'Add Image', action: () => openGalleryModal() }
+      ]
+    },
+    {
+      id: 'services',
+      label: 'Services',
+      icon: Layers,
+      children: [
+        { label: 'View All', action: () => setActiveTab('services') },
+        { label: 'Add Service', action: () => openServiceModal() }
+      ]
+    },
     { id: 'settings', label: 'Terminal', icon: Settings },
   ];
 
@@ -596,11 +899,11 @@ export const Admin: React.FC = () => {
       <div className="min-h-screen bg-oak flex items-center justify-center p-6 selection:bg-gold selection:text-white">
         <div className="max-w-md w-full bg-white rounded-3xl p-10 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gold"></div>
-          
+
           <div className="flex justify-center mb-10">
             <Logo variant="dark" className="h-16" />
           </div>
-          
+
           <div className="text-center mb-10">
             <h2 className="font-serif text-3xl text-oak mb-2">Central Command</h2>
             <p className="text-gray-400 text-[10px] uppercase tracking-[0.3em] font-bold">Authorized Personnel Only</p>
@@ -611,9 +914,9 @@ export const Admin: React.FC = () => {
               <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400 ml-1">Email Terminal</label>
               <div className="relative group">
                 <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-gold transition-colors" />
-                <input 
-                  type="email" 
-                  placeholder="admin@newoak.com" 
+                <input
+                  type="email"
+                  placeholder="admin@newoak.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={`w-full bg-gray-50 border ${loginError ? 'border-red-500' : 'border-gray-100'} p-4 pl-12 rounded-2xl text-sm focus:outline-none focus:border-gold/50 focus:bg-white transition-all`}
@@ -626,9 +929,9 @@ export const Admin: React.FC = () => {
               <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400 ml-1">Access Key</label>
               <div className="relative group">
                 <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-gold transition-colors" />
-                <input 
-                  type="password" 
-                  placeholder="••••••••" 
+                <input
+                  type="password"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={`w-full bg-gray-50 border ${loginError ? 'border-red-500' : 'border-gray-100'} p-4 pl-12 rounded-2xl text-sm focus:outline-none focus:border-gold/50 focus:bg-white transition-all`}
@@ -644,13 +947,13 @@ export const Admin: React.FC = () => {
               </div>
             )}
 
-            <button 
+            <button
               disabled={isLoggingIn}
               className="w-full bg-oak text-white py-5 rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold transition-all shadow-xl shadow-oak/20 active:scale-95 flex items-center justify-center"
             >
               {isLoggingIn ? <Loader2 className="animate-spin mr-2" size={16} /> : "Initialize Session"}
             </button>
-            
+
             <div className="pt-6 border-t border-gray-50 text-center">
               <Link to="/" className="inline-block text-gray-400 text-[9px] uppercase font-bold tracking-[0.2em] hover:text-gold transition-colors">
                 Return to Public Interface
@@ -669,7 +972,7 @@ export const Admin: React.FC = () => {
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 my-auto">
             <div className="bg-oak p-6 flex justify-between items-center text-white">
               <h3 className="font-serif text-xl">{editingProperty ? 'Edit Asset' : 'Register New Asset'}</h3>
-              <button onClick={() => {setIsPropertyModalOpen(false); setEditingProperty(null); setFormImages([]);}}><X /></button>
+              <button onClick={() => { setIsPropertyModalOpen(false); setEditingProperty(null); setFormImages([]); }}><X /></button>
             </div>
             <form onSubmit={handlePropertySubmit} className="p-8 space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -692,16 +995,16 @@ export const Admin: React.FC = () => {
                   <input name="price" type="number" defaultValue={editingProperty?.price} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Internal SQFT</label>
-                  <input name="sqft" type="number" defaultValue={editingProperty?.sqft} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Square Footage</label>
+                  <input name="sqft" type="number" defaultValue={editingProperty?.sqft} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Beds</label>
-                  <input name="beds" type="number" defaultValue={editingProperty?.beds} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                  <input name="beds" type="number" defaultValue={editingProperty?.beds} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Baths</label>
-                  <input name="baths" type="number" defaultValue={editingProperty?.baths} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                  <input name="baths" type="number" defaultValue={editingProperty?.baths} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Description</label>
@@ -719,7 +1022,7 @@ export const Admin: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 min-h-[100px] p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
                   {formImages.map((img, index) => (
-                    <div 
+                    <div
                       key={index}
                       draggable
                       onDragStart={() => handleDragStart(index)}
@@ -750,41 +1053,87 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
+      {/* Team Modal */}
+      {isTeamModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-oak/60 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto">
+          <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 my-auto">
+            <div className="bg-oak p-6 flex justify-between items-center text-white">
+              <h3 className="font-serif text-xl">{editingTeamMember ? 'Edit Team Member' : 'Register New Member'}</h3>
+              <button onClick={() => { setIsTeamModalOpen(false); setEditingTeamMember(null); setTeamImage(''); }}><X /></button>
+            </div>
+            <form onSubmit={handleTeamSubmit} className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-6">
+                  <div
+                    className="w-24 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 relative overflow-hidden group cursor-pointer"
+                    onClick={() => teamImageInputRef.current?.click()}
+                  >
+                    {teamImage ? (
+                      <img src={teamImage} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center text-gray-400">
+                        <Upload size={20} className="mx-auto mb-1" />
+                        <span className="text-[9px] uppercase font-bold">Photo</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center text-white text-[9px] uppercase font-bold">
+                      Change
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Full Name</label>
+                    <input name="name" defaultValue={editingTeamMember?.name} required className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl text-sm focus:border-gold focus:outline-none" placeholder="e.g. Richard K. Mensah" />
+                  </div>
+                  <input type="file" ref={teamImageInputRef} className="hidden" accept="image/*" onChange={handleTeamImageUpload} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Corporate Role</label>
+                  <input name="role" defaultValue={editingTeamMember?.role} required className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl text-sm focus:border-gold focus:outline-none" placeholder="e.g. Chief Executive Officer" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Bio (Short)</label>
+                  <textarea name="bio" defaultValue={editingTeamMember?.bio} rows={3} required className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" placeholder="Brief executive summary..." />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">LinkedIn URL</label>
+                    <input name="linkedin" defaultValue={editingTeamMember?.linkedin} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Email Address</label>
+                    <input name="email" defaultValue={editingTeamMember?.email} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full bg-gold text-white py-4 rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
+                {editingTeamMember ? 'Update Profile' : 'Onboard Member'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Project Modal */}
       {isProjectModalOpen && (
         <div className="fixed inset-0 z-[100] bg-oak/60 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 my-auto">
             <div className="bg-oak p-6 flex justify-between items-center text-white">
-              <h3 className="font-serif text-xl">{editingProject ? 'Edit Project' : 'Add New Project'}</h3>
-              <button onClick={() => {setIsProjectModalOpen(false); setEditingProject(null); setProjectFormImages([]); setProjectHighlights([]);}}><X /></button>
+              <h3 className="font-serif text-xl">{editingProject ? 'Edit Project' : 'New Project'}</h3>
+              <button onClick={() => { setIsProjectModalOpen(false); setEditingProject(null); setProjectFormImages([]); setProjectHighlights([]); }}><X /></button>
             </div>
             <form onSubmit={handleProjectSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Project Title</label>
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Title</label>
                   <input name="title" defaultValue={editingProject?.title} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Location</label>
                   <input name="location" defaultValue={editingProject?.location} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Status</label>
-                  <select name="status" defaultValue={editingProject?.status || ProjectStatus.PLANNING} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none">
-                    {Object.values(ProjectStatus).map(status => <option key={status} value={status}>{status}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Expected Completion</label>
-                  <input name="expectedCompletion" defaultValue={editingProject?.expectedCompletion} placeholder="Q4 2025" required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Estimated Units</label>
-                  <input name="estimatedUnits" type="number" defaultValue={editingProject?.estimatedUnits} className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Description</label>
-                  <textarea name="description" defaultValue={editingProject?.description} rows={3} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" />
                 </div>
               </div>
 
@@ -797,21 +1146,20 @@ export const Admin: React.FC = () => {
                     <span>Add Highlight</span>
                   </button>
                 </div>
-                <div className="space-y-2">
-                  {projectHighlights.map((highlight, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={highlight}
-                        onChange={(e) => updateHighlight(index, e.target.value)}
-                        placeholder="e.g., 24-hour security"
-                        className="flex-grow bg-gray-50 border border-gray-100 p-3 rounded-xl text-sm focus:border-gold focus:outline-none"
-                      />
-                      <button type="button" onClick={() => removeHighlight(index)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
+                <div className="space-y-2">          {projectHighlights.map((highlight, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={highlight}
+                      onChange={(e) => updateHighlight(index, e.target.value)}
+                      placeholder="e.g., 24-hour security"
+                      className="flex-grow bg-gray-50 border border-gray-100 p-3 rounded-xl text-sm focus:border-gold focus:outline-none"
+                    />
+                    <button type="button" onClick={() => removeHighlight(index)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
                 </div>
               </div>
 
@@ -846,101 +1194,104 @@ export const Admin: React.FC = () => {
               <button type="submit" className="w-full bg-gold text-white py-5 rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
                 {editingProject ? 'Update Project' : 'Create Project'}
               </button>
-            </form>
-          </div>
-        </div>
-      )}
+            </form >
+          </div >
+        </div >
+      )
+      }
 
       {/* Blog Modal */}
-      {isBlogModalOpen && (
-        <div className="fixed inset-0 z-[100] bg-oak/60 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 my-auto">
-            <div className="bg-oak p-6 flex justify-between items-center text-white">
-              <h3 className="font-serif text-xl">{editingBlogPost ? 'Edit Blog Post' : 'Create New Post'}</h3>
-              <button onClick={() => {setIsBlogModalOpen(false); setEditingBlogPost(null); setBlogCoverImage(''); setBlogTags([]);}}><X /></button>
-            </div>
-            <form onSubmit={handleBlogSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Title</label>
-                  <input name="title" defaultValue={editingBlogPost?.title} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Author</label>
-                  <input name="author" defaultValue={editingBlogPost?.author || 'NewOak Team'} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Category</label>
-                  <input name="category" defaultValue={editingBlogPost?.category} placeholder="e.g., Market Insights" required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Excerpt (Short Summary)</label>
-                  <textarea name="excerpt" defaultValue={editingBlogPost?.excerpt} rows={2} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Content</label>
-                  <textarea name="content" defaultValue={editingBlogPost?.content} rows={8} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" placeholder="Write your blog post content here. Use new lines to separate paragraphs." />
-                </div>
+      {
+        isBlogModalOpen && (
+          <div className="fixed inset-0 z-[100] bg-oak/60 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto">
+            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 my-auto">
+              <div className="bg-oak p-6 flex justify-between items-center text-white">
+                <h3 className="font-serif text-xl">{editingBlogPost ? 'Edit Blog Post' : 'Create New Post'}</h3>
+                <button onClick={() => { setIsBlogModalOpen(false); setEditingBlogPost(null); setBlogCoverImage(''); setBlogTags([]); }}><X /></button>
               </div>
-
-              {/* Cover Image */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Cover Image</label>
-                  <button type="button" onClick={() => blogCoverInputRef.current?.click()} className="flex items-center space-x-2 text-gold text-[10px] uppercase font-bold tracking-widest hover:text-gold-dark transition-colors">
-                    <Upload size={14} />
-                    <span>Upload Image</span>
-                  </button>
-                  <input type="file" ref={blogCoverInputRef} className="hidden" accept="image/*" onChange={handleBlogCoverUpload} />
-                </div>
-                {blogCoverImage && (
-                  <div className="relative w-full h-40 rounded-xl overflow-hidden">
-                    <img src={blogCoverImage} className="w-full h-full object-cover" alt="Cover" />
-                    <button type="button" onClick={() => setBlogCoverImage('')} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
-                      <Trash2 size={14} />
-                    </button>
+              <form onSubmit={handleBlogSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Title</label>
+                    <input name="title" defaultValue={editingBlogPost?.title} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
                   </div>
-                )}
-              </div>
-
-              {/* Tags */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Tags</label>
-                  <button type="button" onClick={addTag} className="flex items-center space-x-2 text-gold text-[10px] uppercase font-bold tracking-widest hover:text-gold-dark transition-colors">
-                    <Plus size={14} />
-                    <span>Add Tag</span>
-                  </button>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Author</label>
+                    <input name="author" defaultValue={editingBlogPost?.author || 'NewOak Team'} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Category</label>
+                    <input name="category" defaultValue={editingBlogPost?.category} placeholder="e.g., Market Insights" required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Excerpt (Short Summary)</label>
+                    <textarea name="excerpt" defaultValue={editingBlogPost?.excerpt} rows={2} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Content</label>
+                    <textarea name="content" defaultValue={editingBlogPost?.content} rows={8} required className="w-full bg-gray-50 border border-gray-100 p-4 rounded-xl text-sm focus:border-gold focus:outline-none resize-none" placeholder="Write your blog post content here. Use new lines to separate paragraphs." />
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {blogTags.map((tag, index) => (
-                    <div key={index} className="flex items-center space-x-1 bg-gray-50 rounded-full px-3 py-1">
-                      <input
-                        type="text"
-                        value={tag}
-                        onChange={(e) => updateTag(index, e.target.value)}
-                        placeholder="Tag"
-                        className="bg-transparent text-sm focus:outline-none w-20"
-                      />
-                      <button type="button" onClick={() => removeTag(index)} className="text-red-500 hover:text-red-600">
-                        <X size={14} />
+
+                {/* Cover Image */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Cover Image</label>
+                    <button type="button" onClick={() => blogCoverInputRef.current?.click()} className="flex items-center space-x-2 text-gold text-[10px] uppercase font-bold tracking-widest hover:text-gold-dark transition-colors">
+                      <Upload size={14} />
+                      <span>Upload Image</span>
+                    </button>
+                    <input type="file" ref={blogCoverInputRef} className="hidden" accept="image/*" onChange={handleBlogCoverUpload} />
+                  </div>
+                  {blogCoverImage && (
+                    <div className="relative w-full h-40 rounded-xl overflow-hidden">
+                      <img src={blogCoverImage} className="w-full h-full object-cover" alt="Cover" />
+                      <button type="button" onClick={() => setBlogCoverImage('')} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
+                        <Trash2 size={14} />
                       </button>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
 
-              <div className="flex items-center space-x-4">
-                <input name="published" type="checkbox" defaultChecked={editingBlogPost?.published ?? true} className="w-4 h-4 text-gold border-gray-300 rounded focus:ring-gold" id="publish-check" />
-                <label htmlFor="publish-check" className="text-xs font-bold uppercase tracking-widest text-oak">Publish Immediately</label>
-              </div>
-              <button type="submit" className="w-full bg-gold text-white py-5 rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
-                {editingBlogPost ? 'Update Post' : 'Publish Post'}
-              </button>
-            </form>
+                {/* Tags */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Tags</label>
+                    <button type="button" onClick={addTag} className="flex items-center space-x-2 text-gold text-[10px] uppercase font-bold tracking-widest hover:text-gold-dark transition-colors">
+                      <Plus size={14} />
+                      <span>Add Tag</span>
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {blogTags.map((tag, index) => (
+                      <div key={index} className="flex items-center space-x-1 bg-gray-50 rounded-full px-3 py-1">
+                        <input
+                          type="text"
+                          value={tag}
+                          onChange={(e) => updateTag(index, e.target.value)}
+                          placeholder="Tag"
+                          className="bg-transparent text-sm focus:outline-none w-20"
+                        />
+                        <button type="button" onClick={() => removeTag(index)} className="text-red-500 hover:text-red-600">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <input name="published" type="checkbox" defaultChecked={editingBlogPost?.published ?? true} className="w-4 h-4 text-gold border-gray-300 rounded focus:ring-gold" id="publish-check" />
+                  <label htmlFor="publish-check" className="text-xs font-bold uppercase tracking-widest text-oak">Publish Immediately</label>
+                </div>
+                <button type="submit" className="w-full bg-gold text-white py-5 rounded-xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
+                  {editingBlogPost ? 'Update Post' : 'Publish Post'}
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Sidebar */}
       <aside className={`fixed left-0 top-0 h-full bg-oak text-white transition-all duration-300 ease-in-out z-50 flex flex-col ${isSidebarOpen ? 'w-64' : 'w-20'}`}>
@@ -981,7 +1332,7 @@ export const Admin: React.FC = () => {
                     </div>
                   )}
                 </button>
-                
+
                 {isSidebarOpen && hasChildren && isExpanded && (
                   <div className="pl-12 space-y-1 animate-in slide-in-from-top-1 duration-200">
                     {item.children.map((child, cIdx) => (
@@ -1018,7 +1369,7 @@ export const Admin: React.FC = () => {
             <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">NewOak Management Cloud</p>
           </div>
           <div className="flex items-center space-x-6">
-            <button 
+            <button
               onClick={seedInitialData}
               className="px-4 py-2 border border-gold text-gold rounded-full text-[9px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all"
             >
@@ -1072,20 +1423,20 @@ export const Admin: React.FC = () => {
                   </div>
                 </div>
                 <div className="bg-oak p-8 rounded-2xl shadow-xl flex flex-col justify-between">
-                   <div>
-                     <div className="flex items-center space-x-2 text-gold mb-6">
-                       <Star size={16} fill="currentColor" />
-                       <span className="text-[10px] uppercase font-bold tracking-widest">Market Intel</span>
-                     </div>
-                     <h3 className="text-white font-serif text-2xl mb-4">Sentiment Tracker</h3>
-                     <p className="text-gray-400 text-sm leading-relaxed">
-                       {inquiries.length > 0 ? (
-                         <>High interest detected in <span className="text-white font-bold">{inquiries[0].propertyName}</span>. Overall market sentiment for Haatso enclaves remains bullish.</>
-                       ) : (
-                         "Awaiting regional data. Deploy listings to begin sentiment tracking."
-                       )}
-                     </p>
-                   </div>
+                  <div>
+                    <div className="flex items-center space-x-2 text-gold mb-6">
+                      <Star size={16} fill="currentColor" />
+                      <span className="text-[10px] uppercase font-bold tracking-widest">Market Intel</span>
+                    </div>
+                    <h3 className="text-white font-serif text-2xl mb-4">Sentiment Tracker</h3>
+                    <p className="text-gray-400 text-sm leading-relaxed">
+                      {inquiries.length > 0 ? (
+                        <>High interest detected in <span className="text-white font-bold">{inquiries[0].propertyName}</span>. Overall market sentiment for Haatso enclaves remains bullish.</>
+                      ) : (
+                        "Awaiting regional data. Deploy listings to begin sentiment tracking."
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1166,9 +1517,9 @@ export const Admin: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-8 py-6 text-right space-x-2">
-                             <button onClick={() => updateInquiryStatus(i.id, BookingStatus.CONFIRMED)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg"><Check size={18} /></button>
-                             <button onClick={() => updateInquiryStatus(i.id, BookingStatus.CANCELLED)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><X size={18} /></button>
-                             <button onClick={() => deleteInquiry(i.id)} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={18} /></button>
+                            <button onClick={() => updateInquiryStatus(i.id, BookingStatus.CONFIRMED)} className="p-2 text-green-500 hover:bg-green-50 rounded-lg"><Check size={18} /></button>
+                            <button onClick={() => updateInquiryStatus(i.id, BookingStatus.CANCELLED)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><X size={18} /></button>
+                            <button onClick={() => deleteInquiry(i.id)} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={18} /></button>
                           </td>
                         </tr>
                       ))}
@@ -1222,11 +1573,10 @@ export const Admin: React.FC = () => {
                             </div>
                           </td>
                           <td className="px-8 py-6">
-                            <span className={`text-[10px] font-bold uppercase tracking-tighter px-3 py-1 rounded-full ${
-                              project.status === ProjectStatus.IN_PROGRESS ? 'bg-gold/20 text-gold' :
+                            <span className={`text-[10px] font-bold uppercase tracking-tighter px-3 py-1 rounded-full ${project.status === ProjectStatus.IN_PROGRESS ? 'bg-gold/20 text-gold' :
                               project.status === ProjectStatus.COMING_SOON ? 'bg-green-100 text-green-700' :
-                              'bg-blue-100 text-blue-700'
-                            }`}>{project.status}</span>
+                                'bg-blue-100 text-blue-700'
+                              }`}>{project.status}</span>
                           </td>
                           <td className="px-8 py-6">
                             <div className="flex items-center space-x-1 text-xs text-gray-500">
@@ -1322,97 +1672,242 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
+          {/* Team Tab Content */}
+          {activeTab === 'team' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <div className="flex space-x-2">
+                  <div className="bg-white p-2 rounded-lg border border-gray-100 shadow-sm flex items-center space-x-2 px-4">
+                    <Filter size={14} className="text-gray-400" />
+                    <span className="text-xs font-medium text-gray-500">All Roles</span>
+                  </div>
+                </div>
+                <button onClick={() => openTeamModal()} className="bg-oak text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-gold transition-all shadow-lg shadow-oak/20 flex items-center space-x-2">
+                  <Plus size={16} />
+                  <span>Add Member</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {teamMembers.map((member) => (
+                  <div key={member.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 group hover:border-gold/30 transition-all">
+                    <div className="aspect-[3/4] rounded-xl overflow-hidden mb-6 relative">
+                      <img src={member.image} alt={member.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                      <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-[-10px] group-hover:translate-y-0">
+                        <button onClick={() => openTeamModal(member)} className="p-2 bg-white/90 backdrop-blur-sm rounded-lg hover:text-gold shadow-sm transition-colors">
+                          <Edit3 size={14} />
+                        </button>
+                        <button onClick={() => deleteTeamMember(member.id)} className="p-2 bg-white/90 backdrop-blur-sm rounded-lg hover:text-red-500 shadow-sm transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-xl text-oak mb-1">{member.name}</h3>
+                      <p className="text-[10px] uppercase tracking-widest text-gold font-bold mb-3">{member.role}</p>
+                      <p className="text-gray-400 text-xs leading-relaxed line-clamp-3 mb-4">{member.bio}</p>
+                      <div className="flex items-center space-x-3 border-t border-gray-50 pt-4">
+                        {member.linkedin && <LinkIcon size={14} className="text-gray-300 hover:text-blue-600 cursor-pointer" />}
+                        {member.email && <Mail size={14} className="text-gray-300 hover:text-oak cursor-pointer" />}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {teamMembers.length === 0 && (
+                  <div className="col-span-full py-20 text-center border-2 border-dashed border-gray-200 rounded-3xl">
+                    <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-gray-900 font-medium mb-1">No Team Members Found</h3>
+                    <p className="text-gray-500 text-sm mb-6">Start by adding your executive team.</p>
+                    <button onClick={() => openTeamModal()} className="text-gold font-bold text-xs uppercase tracking-widest hover:underline">Register First Member</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Gallery Tab Content */}
+          {activeTab === 'gallery' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-serif text-xl text-oak">Design Gallery</h3>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Manage architectural showcase images</p>
+                </div>
+                <button onClick={() => openGalleryModal()} className="bg-oak text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-gold transition-all shadow-lg shadow-oak/20 flex items-center space-x-2">
+                  <Plus size={16} />
+                  <span>Add Image</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {galleryItems.map((item) => (
+                  <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 group hover:border-gold/30 transition-all relative">
+                    <div className={`rounded-xl overflow-hidden mb-4 relative ${item.isMain ? 'aspect-video' : 'aspect-square'}`}>
+                      <img src={item.image} alt={item.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                      <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-[-10px] group-hover:translate-y-0">
+                        <button onClick={() => openGalleryModal(item)} className="p-2 bg-white/90 backdrop-blur-sm rounded-lg hover:text-gold shadow-sm transition-colors">
+                          <Edit3 size={14} />
+                        </button>
+                        <button onClick={() => deleteGalleryItem(item.id)} className="p-2 bg-white/90 backdrop-blur-sm rounded-lg hover:text-red-500 shadow-sm transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      {item.isMain && <span className="absolute bottom-2 left-2 bg-gold text-white text-[9px] font-bold uppercase px-2 py-1 rounded-md">Main Feature</span>}
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-sm text-oak mb-1">{item.title}</h3>
+                      <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold truncate">{item.subtitle}</p>
+                    </div>
+                  </div>
+                ))}
+                {galleryItems.length === 0 && (
+                  <div className="col-span-full py-20 text-center border-2 border-dashed border-gray-200 rounded-3xl">
+                    <ImageIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-gray-900 font-medium mb-1">Gallery Empty</h3>
+                    <p className="text-gray-500 text-sm mb-6">Upload high-quality images to the design showcase.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Services Tab Content */}
+          {activeTab === 'services' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-serif text-xl text-oak">Services & Solutions</h3>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Manage service offerings and imagery</p>
+                </div>
+                <button onClick={() => openServiceModal()} className="bg-oak text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-gold transition-all shadow-lg shadow-oak/20 flex items-center space-x-2">
+                  <Plus size={16} />
+                  <span>Add Service</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {serviceItems.map((item) => (
+                  <div key={item.id} className="relative group rounded-2xl overflow-hidden aspect-[16/9] border border-gray-100 shadow-sm">
+                    <img src={item.image} alt={item.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+                    <div className="absolute inset-0 bg-oak/80 group-hover:bg-oak/70 transition-colors backdrop-blur-[2px]"></div>
+
+                    <div className="absolute inset-0 p-8 flex flex-col justify-between">
+                      <div className="flex justify-between items-start">
+                        <div className="bg-white/10 p-3 rounded-lg backdrop-blur-md border border-white/10">
+                          <Layers className="text-gold w-6 h-6" />
+                        </div>
+                        <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity transform -translate-y-2 group-hover:translate-y-0">
+                          <button onClick={() => openServiceModal(item)} className="p-2 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-white hover:text-oak transition-colors">
+                            <Edit3 size={14} />
+                          </button>
+                          <button onClick={() => deleteService(item.id)} className="p-2 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-red-500 hover:text-white transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-2xl font-serif text-white mb-2">{item.title}</h3>
+                        <p className="text-white/70 text-sm line-clamp-2">{item.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'settings' && (
             <div className="max-w-3xl bg-white p-10 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-500">
               <h3 className="font-serif text-2xl text-oak mb-8">System Configuration</h3>
               <div className="space-y-8">
                 {/* Hero Image Carousel Section */}
                 <div className="flex flex-col space-y-4 p-6 bg-oak/5 rounded-xl border border-oak/5">
-                   <div className="flex items-center justify-between">
-                     <div>
-                       <p className="text-xs font-bold text-oak">Hero Image Carousel</p>
-                       <p className="text-[9px] text-gray-400 uppercase tracking-widest">Upload multiple images for auto-sliding hero (Max 3MB each, up to 10 images)</p>
-                     </div>
-                     <div className="flex items-center space-x-3">
-                       {hasCustomHero && (
-                         <button
-                           onClick={resetHero}
-                           className="text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                         >
-                           Clear All
-                         </button>
-                       )}
-                       <button
-                         onClick={() => heroImageInputRef.current?.click()}
-                         disabled={isHeroUploading || heroImages.length >= 10}
-                         className="bg-white border border-gray-200 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-all flex items-center space-x-2 disabled:opacity-50 shadow-sm"
-                       >
-                         {isHeroUploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                         <span>{isHeroUploading ? 'Uploading...' : 'Add Image'}</span>
-                       </button>
-                     </div>
-                   </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-oak">Hero Image Carousel</p>
+                      <p className="text-[9px] text-gray-400 uppercase tracking-widest">Upload multiple images for auto-sliding hero (Max 3MB each, up to 10 images)</p>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      {hasCustomHero && (
+                        <button
+                          onClick={resetHero}
+                          className="text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 px-3 py-2 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                        >
+                          Clear All
+                        </button>
+                      )}
+                      <button
+                        onClick={() => heroImageInputRef.current?.click()}
+                        disabled={isHeroUploading || heroImages.length >= 10}
+                        className="bg-white border border-gray-200 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-all flex items-center space-x-2 disabled:opacity-50 shadow-sm"
+                      >
+                        {isHeroUploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                        <span>{isHeroUploading ? 'Uploading...' : 'Add Image'}</span>
+                      </button>
+                    </div>
+                  </div>
 
-                   {/* Hero Images Grid */}
-                   {heroImages.length > 0 && (
-                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-                       {heroImages.map((img, index) => (
-                         <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border-2 border-white shadow-sm hover:border-gold/50 transition-all">
-                           <img src={img} className="w-full h-full object-cover" alt={`Hero slide ${index + 1}`} />
-                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                             <button
-                               type="button"
-                               onClick={() => removeHeroImage(index)}
-                               className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                             >
-                               <Trash2 size={16} />
-                             </button>
-                           </div>
-                           <div className="absolute bottom-2 left-2 bg-oak/80 text-white text-[9px] px-2 py-1 rounded font-bold">
-                             {index + 1}
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   )}
+                  {/* Hero Images Grid */}
+                  {heroImages.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+                      {heroImages.map((img, index) => (
+                        <div key={index} className="relative group aspect-video rounded-lg overflow-hidden border-2 border-white shadow-sm hover:border-gold/50 transition-all">
+                          <img src={img} className="w-full h-full object-cover" alt={`Hero slide ${index + 1}`} />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={() => removeHeroImage(index)}
+                              className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          <div className="absolute bottom-2 left-2 bg-oak/80 text-white text-[9px] px-2 py-1 rounded font-bold">
+                            {index + 1}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                   {heroImages.length === 0 && (
-                     <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-gray-200 rounded-xl mt-4">
-                       <ImageIcon size={32} className="text-gray-200 mb-3" />
-                       <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">No carousel images</p>
-                       <p className="text-[9px] text-gray-300 mt-1">Add images to create an auto-sliding hero</p>
-                     </div>
-                   )}
+                  {heroImages.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-8 text-center border-2 border-dashed border-gray-200 rounded-xl mt-4">
+                      <ImageIcon size={32} className="text-gray-200 mb-3" />
+                      <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">No carousel images</p>
+                      <p className="text-[9px] text-gray-300 mt-1">Add images to create an auto-sliding hero</p>
+                    </div>
+                  )}
 
-                   <p className="text-[9px] text-gray-400 mt-2">
-                     <span className="font-bold text-gold">{heroImages.length}/10</span> images uploaded. Images will auto-rotate every 6 seconds on the homepage.
-                   </p>
+                  <p className="text-[9px] text-gray-400 mt-2">
+                    <span className="font-bold text-gold">{heroImages.length}/10</span> images uploaded. Images will auto-rotate every 6 seconds on the homepage.
+                  </p>
 
-                   <input
-                     type="file"
-                     ref={heroImageInputRef}
-                     className="hidden"
-                     accept="image/*"
-                     onChange={handleHeroImageUpload}
-                   />
+                  <input
+                    type="file"
+                    ref={heroImageInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleHeroImageUpload}
+                  />
                 </div>
 
                 {/* Corporate Video Section */}
                 <div className="flex flex-col space-y-4 p-6 bg-oak/5 rounded-xl border border-oak/5">
-                   <div className="flex items-center justify-between">
-                     <div>
-                       <p className="text-xs font-bold text-oak">Corporate Narrative Video</p>
-                       <p className="text-[9px] text-gray-400 uppercase tracking-widest">Video asset for the narrative background (Max 8MB)</p>
-                     </div>
-                     <div className="flex items-center space-x-3">
-                       {hasCustomVideo && <button onClick={resetVideo} className="text-red-500 text-[10px] font-bold uppercase tracking-widest hover:underline">Reset</button>}
-                       <button onClick={() => corporateVideoInputRef.current?.click()} disabled={isVideoUploading} className="bg-white border border-gray-200 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-all flex items-center space-x-2 disabled:opacity-50">
-                         {isVideoUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                         <span>{isVideoUploading ? 'Processing...' : 'Upload Video'}</span>
-                       </button>
-                     </div>
-                   </div>
-                   <input type="file" ref={corporateVideoInputRef} className="hidden" accept="video/mp4" onChange={handleCorporateVideoUpload} />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-oak">Corporate Narrative Video</p>
+                      <p className="text-[9px] text-gray-400 uppercase tracking-widest">Video asset for the narrative background (Max 8MB)</p>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      {hasCustomVideo && <button onClick={resetVideo} className="text-red-500 text-[10px] font-bold uppercase tracking-widest hover:underline">Reset</button>}
+                      <button onClick={() => corporateVideoInputRef.current?.click()} disabled={isVideoUploading} className="bg-white border border-gray-200 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:border-gold hover:text-gold transition-all flex items-center space-x-2 disabled:opacity-50">
+                        {isVideoUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                        <span>{isVideoUploading ? 'Processing...' : 'Upload Video'}</span>
+                      </button>
+                    </div>
+                  </div>
+                  <input type="file" ref={corporateVideoInputRef} className="hidden" accept="video/mp4" onChange={handleCorporateVideoUpload} />
                 </div>
 
                 <div className="bg-gray-50 p-6 rounded-xl space-y-4">
@@ -1426,7 +1921,116 @@ export const Admin: React.FC = () => {
             </div>
           )}
         </div>
+        {isGalleryModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+              <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h3 className="font-serif text-xl text-oak">{editingGalleryItem ? 'Edit Image' : 'Add to Gallery'}</h3>
+                <button onClick={() => setIsGalleryModalOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleGallerySubmit} className="p-8 space-y-6">
+                <div className="space-y-4">
+                  <div onClick={() => galleryImageInputRef.current?.click()} className="cursor-pointer group relative aspect-video rounded-xl bg-gray-100 border-2 border-dashed border-gray-200 hover:border-gold transition-all overflow-hidden">
+                    {galleryImage ? (
+                      <img src={galleryImage} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-400 group-hover:text-gold transition-colors">
+                        <Upload size={32} className="mb-2" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Upload Image</span>
+                      </div>
+                    )}
+                    <input ref={galleryImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleGalleryImageUpload} />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-2">Title</label>
+                    <input type="text" name="title" defaultValue={editingGalleryItem?.title} required className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors" placeholder="e.g. Modern Kitchen" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-2">Subtitle</label>
+                    <input type="text" name="subtitle" defaultValue={editingGalleryItem?.subtitle} required className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors" placeholder="e.g. Italian Marble Finishes" />
+                  </div>
+
+                  <div className="flex items-center space-x-3 bg-gray-50 p-4 rounded-xl">
+                    <input type="checkbox" name="isMain" id="isMain" defaultChecked={editingGalleryItem?.isMain} className="accent-gold w-4 h-4" />
+                    <label htmlFor="isMain" className="text-xs text-gray-600 font-medium select-none cursor-pointer">Set as Main Feature (Large Display)</label>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setIsGalleryModalOpen(false)} className="flex-1 px-6 py-3 border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 bg-oak text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gold transition-colors">Save Image</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {isServiceModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+              <div className="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 sticky top-0 z-10 backdrop-blur-md">
+                <h3 className="font-serif text-xl text-oak">{editingServiceItem ? 'Edit Service' : 'Add Service'}</h3>
+                <button onClick={() => setIsServiceModalOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleServiceSubmit} className="p-8 space-y-6">
+                <div className="space-y-4">
+                  <div onClick={() => serviceImageInputRef.current?.click()} className="cursor-pointer group relative aspect-video rounded-xl bg-gray-100 border-2 border-dashed border-gray-200 hover:border-gold transition-all overflow-hidden">
+                    {serviceImage ? (
+                      <img src={serviceImage} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-400 group-hover:text-gold transition-colors">
+                        <Upload size={32} className="mb-2" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Upload Cover Image</span>
+                      </div>
+                    )}
+                    <input ref={serviceImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleServiceImageUpload} />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-2">Title</label>
+                    <input type="text" name="title" defaultValue={editingServiceItem?.title} required className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors" placeholder="e.g. Estate Development" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-2">Description</label>
+                    <textarea name="description" defaultValue={editingServiceItem?.description} required rows={3} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors" placeholder="Detailed description of the service..." />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500 block mb-2">Icon</label>
+                    <div className="relative">
+                      <select name="icon" defaultValue={editingServiceItem?.icon || 'Shield'} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold transition-colors appearance-none">
+                        <option value="Shield">Shield (Security/Trust)</option>
+                        <option value="TrendingUp">TrendingUp (Investment)</option>
+                        <option value="Landmark">Landmark (Architecture)</option>
+                        <option value="Key">Key (Concierge/Access)</option>
+                        <option value="Briefcase">Briefcase (Professional)</option>
+                        <option value="Globe">Globe (Global)</option>
+                        <option value="Zap">Zap (Innovation)</option>
+                        <option value="Award">Award (Quality)</option>
+                      </select>
+                      <ChevronDown size={14} className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setIsServiceModalOpen(false)} className="flex-1 px-6 py-3 border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 bg-oak text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gold transition-colors">Save Service</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
-    </div>
+    </div >
   );
 };

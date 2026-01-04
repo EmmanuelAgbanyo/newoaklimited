@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Calendar, Building2, ChevronRight, Hammer, Clock, CheckCircle2 } from 'lucide-react';
+import { ImageComponent } from '../components/ImageComponent';
 import { UpcomingProject, ProjectStatus } from '../types';
 import { db } from '../services/firebase';
 import { ref, onValue } from 'firebase/database';
@@ -100,7 +101,7 @@ export const UpcomingProjects: React.FC = () => {
                 >
                   <div className="grid md:grid-cols-2">
                     <div className="relative h-64 md:h-auto">
-                      <img
+                      <ImageComponent
                         src={project.images[0] || 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=1200'}
                         alt={project.title}
                         className="w-full h-full object-cover"
@@ -182,7 +183,7 @@ export const UpcomingProjects: React.FC = () => {
                       onClick={() => setSelectedProject(project)}
                     >
                       <div className="relative h-56">
-                        <img
+                        <ImageComponent
                           src={project.images[0] || 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=800'}
                           alt={project.title}
                           className="w-full h-full object-cover"
@@ -225,7 +226,7 @@ export const UpcomingProjects: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="relative h-72 md:h-96">
-              <img
+              <ImageComponent
                 src={selectedProject.images[0] || 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=1200'}
                 alt={selectedProject.title}
                 className="w-full h-full object-cover"
@@ -277,7 +278,7 @@ export const UpcomingProjects: React.FC = () => {
                   <h4 className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mb-4">Gallery</h4>
                   <div className="grid grid-cols-4 gap-2">
                     {selectedProject.images.slice(1).map((img, idx) => (
-                      <img
+                      <ImageComponent
                         key={idx}
                         src={img}
                         alt={`${selectedProject.title} ${idx + 2}`}

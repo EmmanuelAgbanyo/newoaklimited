@@ -1,45 +1,34 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Shield, Award, Landmark, Key, Zap, Play, Pause, AlertCircle, MapPin, Loader2, Map, Sparkles, TrendingUp, Users, Star, Quote, Globe, Building2, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Shield, TrendingUp, Landmark, Key, Play, Pause, MapPin, Loader2, Map, Sparkles, Building2, Star, Quote, Briefcase, Globe, Zap, Award } from 'lucide-react';
+import { ImageComponent } from '../components/ImageComponent';
+import { useData } from '../contexts/DataContext';
+import { Skeleton } from '../components/ui/Skeleton';
+import { ScrollReveal } from '../components/ui/ScrollReveal';
 import { INITIAL_PROPERTIES } from '../constants';
-import { Property } from '../types';
-import { db } from '../services/firebase';
-import { ref, onValue } from 'firebase/database';
 import { SEO, pageSEO } from '../components/SEO';
+import { ShineBorder } from '../components/ui/shine-border';
+
+const IconMap: { [key: string]: React.ElementType } = {
+  Shield, TrendingUp, Landmark, Key, Briefcase, Globe, Zap, Award
+};
 
 const Hero: React.FC = () => {
-  const [heroImages, setHeroImages] = useState<string[]>([]);
+  const { heroImages } = useData();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAssetLoaded, setIsAssetLoaded] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
 
   const defaultImage = "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?auto=format&fit=crop&q=80&w=2000";
+  const imagesToUse = heroImages.length > 0 ? heroImages : [defaultImage];
 
   useEffect(() => {
-    // Fetch hero images array
-    const assetRef = ref(db, 'settings/heroImages');
-    const unsubscribe = onValue(assetRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data && Array.isArray(data) && data.length > 0) {
-        setHeroImages(data);
-      } else {
-        setHeroImages([]);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Auto-rotate carousel every 6 seconds
-  useEffect(() => {
-    if (heroImages.length <= 1) return;
-
+    if (imagesToUse.length <= 1) return;
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % heroImages.length);
+      setCurrentIndex((prev) => (prev + 1) % imagesToUse.length);
     }, 6000);
-
     return () => clearInterval(interval);
-  }, [heroImages.length]);
+  }, [imagesToUse.length]);
 
   const handleImageLoad = (index: number) => {
     setLoadedImages(prev => new Set(prev).add(index));
@@ -48,7 +37,6 @@ const Hero: React.FC = () => {
     }
   };
 
-  // Track when image changes and update load state
   useEffect(() => {
     if (loadedImages.has(currentIndex)) {
       setIsAssetLoaded(true);
@@ -57,76 +45,67 @@ const Hero: React.FC = () => {
     }
   }, [currentIndex, loadedImages]);
 
-  const currentImage = heroImages.length > 0 ? heroImages[currentIndex] : defaultImage;
-
   return (
     <div className="relative h-screen w-full overflow-hidden flex items-center justify-center bg-oak">
       <div className="absolute inset-0">
-        {heroImages.length > 0 ? (
-          <div className="relative w-full h-full">
-            {/* Preload all carousel images */}
-            {heroImages.map((src, index) => (
-              <img
+        {imagesToUse.map((src, index) => (
+          <img
+            key={index}
+            src={src}
+            className={`absolute inset-0 w-full h-full object-cover transition-all duration-[2000ms] ease-in-out transform scale-105 ${index === currentIndex && loadedImages.has(index) ? 'opacity-100 scale-100' : 'opacity-0'
+              }`}
+            onLoad={() => handleImageLoad(index)}
+            alt={`NewOak Hero Background ${index + 1}`}
+          />
+        ))}
+        {!isAssetLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-oak">
+            {/* Replaced spinner with a logo pulse for more elegance if desired, but retaining spinner for clarity */}
+            <Loader2 className="animate-spin text-gold" size={24} />
+          </div>
+        )}
+        {imagesToUse.length > 1 && (
+          <div className="absolute bottom-12 right-12 z-20 flex space-x-3">
+            {imagesToUse.map((_, index) => (
+              <button
                 key={index}
-                src={src}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-                  index === currentIndex && loadedImages.has(index) ? 'opacity-100' : 'opacity-0'
-                }`}
-                onLoad={() => handleImageLoad(index)}
-                alt={`NewOak Hero Background ${index + 1}`}
+                onClick={() => setCurrentIndex(index)}
+                className={`h-1.5 transition-all duration-500 rounded-full ${index === currentIndex ? 'w-12 bg-gold shadow-[0_0_15px_rgba(240,192,90,0.6)]' : 'w-3 bg-white/30 hover:bg-white/50'
+                  }`}
+                aria-label={`Go to slide ${index + 1}`}
               />
             ))}
-            {!isAssetLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center bg-oak">
-                 <Loader2 className="animate-spin text-gold" size={24} />
-              </div>
-            )}
-            {/* Carousel Indicators */}
-            {heroImages.length > 1 && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex space-x-2">
-                {heroImages.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentIndex(index)}
-                    className={`h-1.5 rounded-full transition-all duration-500 ${
-                      index === currentIndex ? 'w-8 bg-gold' : 'w-2 bg-white/40 hover:bg-white/60'
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
-              </div>
-            )}
           </div>
-        ) : (
-          <img
-            src={defaultImage}
-            alt="New Oak Heights Luxury Architecture"
-            className="w-full h-full object-cover"
-          />
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-oak/90 via-oak/20 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-oak/90 via-oak/40 to-transparent"></div>
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-oak to-transparent"></div>
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-white">
-        <div className="max-w-2xl">
-          <div className="flex items-center space-x-3 mb-6 animate-in slide-in-from-bottom duration-700">
-             <div className="w-12 h-px bg-gold"></div>
-             <span className="text-gold uppercase tracking-[0.5em] font-bold text-[10px]">The Pinnacle of Accra</span>
+        <div className="max-w-4xl">
+          <div className="flex items-center space-x-4 mb-8 animate-fade-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
+            <div className="w-12 h-[2px] bg-gold"></div>
+            <span className="text-gold uppercase tracking-[0.3em] font-semibold text-xs drop-shadow-sm">The Pinnacle of Accra Living</span>
           </div>
-          <h1 className="font-serif text-6xl md:text-8xl mb-8 leading-tight animate-in slide-in-from-left duration-1000">
+
+          <h1 className="font-serif text-5xl md:text-7xl lg:text-9xl mb-8 leading-[1.1] tracking-tight animate-fade-up opacity-0 drop-shadow-2xl" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
             New Oak <br />
-            <span className="italic">Heights</span>
+            <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-white via-gold/40 to-white/10">Heights</span>
           </h1>
-          <p className="text-lg text-gray-300 mb-10 font-light leading-relaxed max-w-lg animate-in fade-in duration-1000">
+
+          <p className="text-lg md:text-xl text-gray-200 mb-12 font-light leading-relaxed max-w-xl animate-fade-up opacity-0 border-l-[3px] border-gold pl-6" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
             A vertical masterpiece defined by architectural courage. Experience the fusion of terracotta warmth and geometric precision in the heart of Haatso.
           </p>
-          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-8 animate-in slide-in-from-bottom duration-1000">
-            <Link to="/gallery" className="bg-gold text-white px-10 py-5 rounded-full font-bold uppercase tracking-widest text-[10px] hover:bg-gold-dark transition-all flex items-center justify-center space-x-3 shadow-xl shadow-gold/20">
-              <span>View The Collection</span>
-              <ArrowRight className="w-4 h-4" />
+
+          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 animate-fade-up opacity-0" style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}>
+            <Link to="/gallery" className="group relative overflow-hidden bg-gold text-oak px-10 py-4 font-bold uppercase tracking-widest text-xs transition-all hover:bg-white hover:text-oak shadow-lg hover:shadow-gold/20 rounded-sm top-0 hover:-top-1">
+              <span className="relative z-10 flex items-center space-x-3">
+                <span>View Collection</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
             </Link>
-            <Link to="/#services" className="border border-white/20 text-white px-10 py-5 rounded-full font-bold uppercase tracking-widest text-[10px] hover:bg-white hover:text-oak transition-all flex items-center justify-center backdrop-blur-sm">
-              Our Legacy
+            <Link to="/#services" className="group relative overflow-hidden px-10 py-4 font-bold uppercase tracking-widest text-xs text-white border border-white/30 backdrop-blur-md hover:bg-white/10 transition-all rounded-sm">
+              <span className="relative z-10">Our Legacy</span>
             </Link>
           </div>
         </div>
@@ -135,128 +114,150 @@ const Hero: React.FC = () => {
   );
 };
 
+
 const FeaturedSlider: React.FC = () => {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { properties, isLoading } = useData();
+  const featured = properties.filter(p => p.featured);
+  // If no featured, fallback to initial props if not loading, else empty
+  const list = featured.length > 0 ? featured : (isLoading ? [] : INITIAL_PROPERTIES.filter(p => p.featured));
+
   const [current, setCurrent] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
+  const next = () => setCurrent((c) => (c + 1) % list.length);
+  const prev = () => setCurrent((c) => (c - 1 + list.length) % list.length);
+
   useEffect(() => {
-    const propsRef = ref(db, 'properties');
-    const unsubscribe = onValue(propsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const list = Object.keys(data).map(key => ({ ...data[key], id: key }));
-        setProperties(list.filter(p => p.featured));
-      } else {
-        setProperties(INITIAL_PROPERTIES.filter(p => p.featured));
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const next = () => setCurrent((c) => (c + 1) % properties.length);
-  const prev = () => setCurrent((c) => (c - 1 + properties.length) % properties.length);
-
-  // Auto-slide effect
-  useEffect(() => {
-    if (properties.length <= 1 || isPaused) return;
-
-    const timer = setInterval(() => {
-      next();
-    }, 5000); // Slide every 5 seconds
-
+    if (list.length <= 1 || isPaused) return;
+    const timer = setInterval(() => { next(); }, 6000);
     return () => clearInterval(timer);
-  }, [properties.length, isPaused]);
+  }, [list.length, isPaused]);
 
-  if (isLoading) return null;
-  if (properties.length === 0) return null;
+  if (isLoading) {
+    return (
+      <section className="py-32 bg-[#F9F9F9] overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex justify-between items-end mb-16">
+            <div className="space-y-4">
+              <Skeleton className="w-24 h-4 rounded-full" />
+              <Skeleton className="w-96 h-16 rounded-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3].map(i => (
+              <Skeleton key={i} className="h-[620px] w-full rounded-sm" />
+            ))}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (list.length === 0) return null;
 
   return (
-    <section 
-      className="py-32 bg-gray-50"
+    <section
+      className="py-32 relative bg-[#F9F9F9] overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex justify-between items-end mb-20">
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
           <div>
-             <span className="text-gold uppercase tracking-[0.4em] text-[10px] font-bold block mb-4">The Selection</span>
-             <h2 className="font-serif text-5xl text-oak">Featured Enclaves</h2>
-          </div>
-          <div className="flex items-center space-x-6">
-            {/* Slide Indicators for Desktop */}
-            <div className="hidden md:flex space-x-2 mr-8">
-              {properties.map((_, i) => (
-                <div 
-                  key={i} 
-                  className={`h-1 transition-all duration-500 rounded-full ${i === current ? 'w-8 bg-gold' : 'w-2 bg-gray-200'}`}
-                />
-              ))}
+            <div className="flex items-center space-x-3 mb-4">
+              <span className="w-8 h-[2px] bg-gold"></span>
+              <span className="text-gold uppercase tracking-[0.3em] text-[10px] font-bold">The Selection</span>
             </div>
-            <button onClick={prev} className="w-16 h-16 rounded-full border border-gray-200 flex items-center justify-center hover:bg-oak hover:text-white transition-all"><ChevronLeft size={20} /></button>
-            <button onClick={next} className="w-16 h-16 rounded-full border border-gray-200 flex items-center justify-center hover:bg-oak hover:text-white transition-all"><ChevronRight size={20} /></button>
+            <h2 className="font-serif text-5xl md:text-6xl text-oak leading-none">Featured <br /><span className="italic text-gold">Enclaves</span></h2>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button onClick={prev} className="w-12 h-12 rounded-full border border-oak/10 flex items-center justify-center text-oak hover:bg-gold hover:border-gold hover:text-white transition-all duration-300 group shadow-sm bg-white">
+              <ChevronLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+            <button onClick={next} className="w-12 h-12 rounded-full border border-oak/10 flex items-center justify-center text-oak hover:bg-gold hover:border-gold hover:text-white transition-all duration-300 group shadow-sm bg-white">
+              <ChevronRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
+            </button>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-          {properties.map((property, idx) => {
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {list.map((property, idx) => {
             const isActive = idx === current;
-            
-            return (
-              <Link 
-                to={`/property/${property.id}`} 
-                key={property.id} 
-                className={`group relative overflow-hidden bg-white luxury-shadow transition-all duration-1000 ${isActive ? 'opacity-100 scale-100 border-gold/20 border' : 'hidden lg:block opacity-40 scale-95 grayscale-[50%]'}`}
-              >
-                <div className="aspect-[4/5] overflow-hidden">
-                  <img src={property.images[0]} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="" />
+            const CardContent = (
+              <div className="flex flex-col h-full w-full">
+                <div className="h-[65%] overflow-hidden w-full relative">
+                  <ImageComponent src={property.images[0]} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-105" alt={property.title} />
                 </div>
-                <div className="p-8">
-                  <span className="text-[10px] text-gold uppercase tracking-widest mb-2 block font-bold">{property.category}</span>
-                  <h3 className="font-serif text-2xl mb-2 text-oak">{property.title}</h3>
-                  <p className="text-gray-400 text-xs mb-6">{property.location}</p>
-                  <div className="flex justify-between items-center border-t border-gray-50 pt-6">
-                    <span className="font-serif italic text-oak">Consult for Price</span>
-                    <div className="flex space-x-4 text-[9px] text-gray-400 font-bold uppercase tracking-widest">
-                      <span>{property.beds} BD</span>
-                      <span>{property.sqft} SQFT</span>
+                <div className="h-[35%] bg-white p-8 flex flex-col justify-between border-t border-gray-50 relative w-full">
+                  <div>
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="inline-block px-3 py-1 text-[9px] uppercase tracking-widest text-white bg-oak font-bold rounded-sm">
+                        {property.category}
+                      </span>
+                      <span className="text-gold text-lg group-hover:translate-x-1 transition-transform">
+                        <ArrowRight size={20} />
+                      </span>
+                    </div>
+                    <h3 className="font-serif text-3xl text-oak mb-2 group-hover:text-gold transition-colors line-clamp-1">{property.title}</h3>
+                    <p className="text-gray-400 text-xs flex items-center gap-2">
+                      <MapPin size={12} className="text-gold" />
+                      {property.location}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-6">
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase tracking-widest block mb-1">Config</span>
+                      <span className="text-oak font-serif font-medium">
+                        {property.beds ? `${property.beds} Bed` : ''}
+                        {property.beds && property.baths ? ', ' : ''}
+                        {property.baths ? `${property.baths} Bath` : ''}
+                        {!property.beds && !property.baths ? 'Custom Config' : ''}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-gray-400 uppercase tracking-widest block mb-1">Details</span>
+                      <span className="text-oak font-serif font-medium underline decoration-gold/50 underline-offset-4 group-hover:decoration-gold transition-all">View Residence</span>
                     </div>
                   </div>
                 </div>
-                {isActive && !isPaused && (
-                  <div className="absolute bottom-0 left-0 h-1 bg-gold animate-[progress_5s_linear_infinite]" style={{ width: '100%' }}></div>
+              </div>
+            );
+
+            return (
+              <Link
+                to={`/property/${property.id}`}
+                key={property.id}
+                className={`group relative block h-[620px] transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${isActive ? 'opacity-100 scale-100 z-10' : 'hidden lg:block opacity-40 scale-95 grayscale hover:grayscale-0 hover:opacity-100'}`}
+              >
+                {isActive ? (
+                  <ShineBorder
+                    className="h-full w-full p-0 overflow-hidden bg-white shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] rounded-sm"
+                    color={["#F0C05A", "#0F382E", "#F0C05A"]}
+                    borderWidth={1.5}
+                  >
+                    {CardContent}
+                  </ShineBorder>
+                ) : (
+                  <div className="h-full w-full bg-white overflow-hidden rounded-sm shadow-sm">
+                    {CardContent}
+                  </div>
                 )}
               </Link>
             );
           })}
         </div>
       </div>
-      <style>{`
-        @keyframes progress {
-          0% { width: 0%; }
-          100% { width: 100%; }
-        }
-      `}</style>
     </section>
   );
 };
 
 const VideoSection: React.FC = () => {
+  const { corporateVideo } = useData();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [assetSrc, setAssetSrc] = useState("https://assets.mixkit.co/videos/preview/mixkit-modern-luxury-house-exterior-at-night-40343-large.mp4");
 
-  useEffect(() => {
-    // Specifically fetch the video asset for the Narrative section
-    const vRef = ref(db, 'settings/corporateVideo');
-    const unsubscribe = onValue(vRef, (snapshot) => {
-      const val = snapshot.val();
-      if (val) setAssetSrc(val);
-    });
-    return () => unsubscribe();
-  }, []);
-
+  const assetSrc = corporateVideo || "https://assets.mixkit.co/videos/preview/mixkit-modern-luxury-house-exterior-at-night-40343-large.mp4";
   const isVideo = assetSrc?.startsWith('data:video') || assetSrc?.endsWith('.mp4');
 
   const togglePlay = () => {
@@ -267,26 +268,41 @@ const VideoSection: React.FC = () => {
   };
 
   return (
-    <section className="py-32 bg-white">
+    <section className="py-32 bg-oak text-white relative">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-20 items-center">
-          <div className="lg:col-span-5">
-            <span className="text-gold uppercase tracking-[0.3em] text-[10px] mb-4 block font-bold">The NewOak Narrative</span>
-            <h2 className="font-serif text-5xl mb-10 leading-tight text-oak">Masterpieces Built on Integrity</h2>
-            <p className="text-gray-500 mb-12 leading-relaxed font-light text-lg">Every NewOak development is a meticulous blend of Ghanaian heritage and global architectural standards.</p>
-          </div>
-          <div className="lg:col-span-7">
-            <div className="aspect-video relative rounded-sm overflow-hidden luxury-shadow bg-oak group cursor-pointer" onClick={togglePlay}>
-              {isVideo ? (
-                <video ref={videoRef} src={assetSrc} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-              ) : (
-                <img src={assetSrc} className="w-full h-full object-cover" alt="NewOak Asset Narrative" />
-              )}
-              {isVideo && !isPlaying && (
-                <div className="absolute inset-0 bg-oak/60 backdrop-blur-[2px] flex items-center justify-center text-white">
-                  <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/20"><Play size={40} className="ml-2 text-gold" /></div>
+        <div className="flex flex-col lg:flex-row gap-24 items-center">
+          <div className="lg:w-5/12 ml-auto order-2 lg:order-1">
+            <div className="relative">
+              <span className="text-gold uppercase tracking-[0.3em] text-[10px] mb-6 block font-bold">The NewOak Narrative</span>
+              <h2 className="font-serif text-5xl md:text-6xl mb-8 leading-tight text-white">Masterpieces <br /><span className="text-gold italic">Built on Integrity</span></h2>
+              <p className="text-gray-300/80 mb-12 leading-relaxed font-light text-lg">
+                Every NewOak development is a meticulous blend of Ghanaian heritage and global architectural standards. We don't just build houses; we curate lifestyles for the discerning few.
+              </p>
+              <div className="flex gap-16 border-t border-white/10 pt-8">
+                <div>
+                  <span className="font-serif text-5xl text-white block mb-2">10+</span>
+                  <span className="text-[9px] uppercase tracking-widest text-gold font-bold">Years Excellence</span>
                 </div>
+                <div>
+                  <span className="font-serif text-5xl text-white block mb-2">$50M+</span>
+                  <span className="text-[9px] uppercase tracking-widest text-gold font-bold">Portfolio Value</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:w-7/12 w-full order-1 lg:order-2">
+            <div className="relative aspect-[16/10] grayscale hover:grayscale-0 transition-all duration-700 shadow-2xl group cursor-pointer bg-black/50 overflow-hidden" onClick={togglePlay}>
+              {isVideo ? (
+                <video ref={videoRef} src={assetSrc} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-700" autoPlay muted loop playsInline />
+              ) : (
+                <img src={assetSrc} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-700" alt="NewOak Asset Narrative" />
               )}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className={`w-20 h-20 rounded-full border border-white/30 bg-white/10 backdrop-blur-md flex items-center justify-center transform transition-all duration-500 ${isPlaying ? 'opacity-0 group-hover:opacity-100 scale-90' : 'opacity-100 scale-100'}`}>
+                  {isPlaying ? <Pause size={24} className="text-white fill-white" /> : <Play size={24} className="text-white fill-white ml-1" />}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -295,190 +311,268 @@ const VideoSection: React.FC = () => {
   );
 };
 
+const TeamSection = () => {
+  const { team, isLoading } = useData();
+  const list = team.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  if (isLoading) {
+    return (
+      <section className="py-32 relative overflow-hidden bg-[#0F382E]">
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="text-center mb-20">
+            <Skeleton className="w-64 h-16 mx-auto bg-white/10" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="aspect-[3/4] bg-white/5" />)}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (!isLoading && list.length === 0) return null;
+
+  return (
+    <section className="py-32 relative overflow-hidden bg-[#0F382E]">
+      <div className="absolute top-0 left-0 w-full h-full">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gold/10 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '4s' }}></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-white/5 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '6s' }}></div>
+      </div>
+
+      <div className="container mx-auto px-6 relative z-10">
+        <div className="text-center mb-20">
+          <h2 className="font-serif text-5xl md:text-6xl text-white mb-6">Visionary <span className="text-gold italic">Leadership</span></h2>
+          <div className="w-24 h-1 bg-gradient-to-r from-transparent via-gold to-transparent mx-auto opacity-50"></div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {list.map((member) => (
+            <div key={member.id} className="group relative">
+              <div className="aspect-[3/4] overflow-hidden rounded-sm relative shadow-2xl">
+                <ImageComponent
+                  src={member.image}
+                  alt={member.name}
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 ease-out transform group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0F382E]/90 via-[#0F382E]/20 to-transparent opacity-60 transition-opacity duration-500"></div>
+                <div className="absolute inset-x-0 bottom-0 p-6 translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-out">
+                  <div className="backdrop-blur-md bg-white/5 border border-white/10 p-5 rounded-sm shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] group-hover:bg-white/10 transition-colors duration-500">
+                    <h3 className="font-serif text-xl text-white mb-1 group-hover:text-gold transition-colors">{member.name}</h3>
+                    <p className="font-sans text-[10px] uppercase tracking-widest text-gold/90 font-bold mb-3">{member.role}</p>
+                    <div className="h-0 group-hover:h-auto overflow-hidden transition-all duration-500 opacity-0 group-hover:opacity-100">
+                      <p className="text-gray-300 text-xs leading-relaxed mb-4 line-clamp-3">{member.bio}</p>
+                      {member.linkedin ? (
+                        <a href={member.linkedin} target="_blank" rel="noreferrer" className="inline-flex items-center space-x-2 text-[9px] uppercase font-bold tracking-widest text-white hover:text-gold transition-colors group/btn">
+                          <span>View Profile</span>
+                          <ArrowRight size={12} className="group-hover/btn:translate-x-1 transition-transform" />
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center space-x-2 text-[9px] uppercase font-bold tracking-widest text-white/50 cursor-not-allowed">
+                          <span>View Profile</span>
+                          <ArrowRight size={12} />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="absolute -inset-[1px] rounded-sm border border-gold/0 group-hover:border-gold/50 transition-colors duration-700 pointer-events-none"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 export const Home: React.FC = () => {
-  const services = [
+  const { galleryItems, services, isLoading } = useData();
+
+  const defaultServices = [
     {
-      title: 'Estate Development',
-      desc: 'Sovereign-grade suburban planning with meticulous attention to Ghanaian heritage and global architectural standards. From site acquisition to final handover, we orchestrate every phase of development with precision.',
-      features: ['Master-planned communities', 'Premium location selection', 'Infrastructure excellence'],
-      icon: Shield
+      id: '1', title: 'Estate Development', description: 'Sovereign-grade suburban planning with meticulous attention to Ghanaian heritage and global architectural standards.',
+      features: ['Master-planned communities', 'Premium location selection'], image: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&q=80&w=800", icon: 'Shield'
     },
     {
-      title: 'Investment Management',
-      desc: 'Strategic ROI optimization tailored for the diaspora and high-net-worth individuals. Our AI-powered investment dossiers provide market intelligence on regional appreciation trends and rental yield potential.',
-      features: ['AI investment analysis', 'Portfolio diversification', 'Diaspora-focused solutions'],
-      icon: TrendingUp
+      id: '2', title: 'Accessible Investment', description: 'Strategic ROI optimization with humanity. We offer tailored payment plans that empower the middle class to build generational wealth effortlessly.',
+      features: ['Flexible payment structures', 'High-yield appreciation'], image: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=800", icon: 'TrendingUp'
     },
     {
-      title: 'Architectural Synthesis',
-      desc: 'Merging local Accra context with global luxury standards. Every NewOak development is a meticulous blend of terracotta warmth, geometric precision, and sustainable design principles.',
-      features: ['Contemporary Ghanaian design', 'Global luxury standards', 'Sustainable innovation'],
-      icon: Landmark
+      id: '3', title: 'Architecture', description: 'Merging local Accra context with global luxury standards. Fusion of terracotta warmth and geometric precision.',
+      features: ['Contemporary Ghanaian design', 'Sustainable innovation'], image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800", icon: 'Landmark'
     },
     {
-      title: 'Asset Concierge',
-      desc: 'End-to-end property maintenance and management with 24/7 gated security protocols. Our concierge team ensures your investment is protected and performing at its optimal potential.',
-      features: ['24/7 security protocols', 'Property management', 'Tenant relations'],
-      icon: Key
+      id: '4', title: 'Concierge', description: 'End-to-end property maintenance and management with 24/7 gated security protocols for your peace of mind.',
+      features: ['24/7 security protocols', 'Property management'], image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800", icon: 'Key'
     }
   ];
 
+  const displayServices = services.length > 0 ? services : defaultServices;
+
+  const defaultImages = [
+    { title: "Bespoke Culinary Spaces", subtitle: "Italian Marble & Integrated Appliances", image: "https://images.unsplash.com/photo-1600607686527-6fb886090705?auto=format&fit=crop&q=80&w=800", isMain: true },
+    { title: "Minimalist Living", subtitle: "Open Plan Design", image: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=800" },
+    { title: "Pool Deck", subtitle: "Resort Style Amenities", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" },
+    { title: "Master Bath", subtitle: "Spa-like Retreat", image: "https://images.unsplash.com/photo-1600566753086-00f18cf6b3ea?auto=format&fit=crop&q=80&w=800" },
+    { title: "Facade Detail", subtitle: "Modern Architecture", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=800" },
+  ];
+  const galleryContent = galleryItems.length > 0 ? galleryItems : defaultImages;
+  const mainItem = galleryContent.find(i => i.isMain) || galleryContent[0];
+  const otherItems = galleryContent.filter(i => i !== mainItem).slice(0, 4);
+
+  // Testimonials & Features static for now
   const testimonials = [
-    {
-      name: 'Dr. Kwame Asante',
-      title: 'Investment Director, Ghana',
-      quote: 'NewOak transformed our understanding of premium real estate in Accra. The Neighborhood Intel feature gave us insights that no other developer could provide. Our investment has appreciated 40% in just two years.',
-      rating: 5
-    },
-    {
-      name: 'Abena Morrison',
-      title: 'Diaspora Investor, London',
-      quote: 'As someone living abroad, the transparency and digital-first approach of NewOak made investing in Ghana seamless. The AI analysis reports are incredibly detailed and professional.',
-      rating: 5
-    },
-    {
-      name: 'Kofi Mensah',
-      title: 'Business Executive, Accra',
-      quote: 'The architectural quality of New Oak Heights is unmatched. From the terracotta facades to the security protocols, every detail speaks of excellence. Truly the pinnacle of Accra living.',
-      rating: 5
-    }
+    { name: 'Dr. Kwame Asante', title: 'Investment Director, Ghana', quote: 'NewOak transformed our understanding of premium real estate in Accra.', rating: 5 },
+    { name: 'Abena Morrison', title: 'Diaspora Investor, London', quote: 'The transparency and digital-first approach of NewOak made investing in Ghana seamless.', rating: 5 },
+    { name: 'Kofi Mensah', title: 'Business Executive, Accra', quote: 'The architectural quality of New Oak Heights is unmatched.', rating: 5 }
   ];
-
   const platformFeatures = [
-    {
-      icon: Map,
-      title: 'Satellite Intel Scan',
-      desc: 'Access real-time neighborhood intelligence powered by Google Maps grounding. Understand amenities, infrastructure, schools, and security around every property.'
-    },
-    {
-      icon: Sparkles,
-      title: 'AI Investment Dossiers',
-      desc: 'Generate sophisticated market analyses for any property. Our AI synthesizes regional appreciation trends, architectural value assessments, and rental yield projections.'
-    },
-    {
-      icon: Globe,
-      title: 'Interactive Asset Maps',
-      desc: 'Explore our portfolio through multiple map layers—Intel, Satellite, and Streets views. Select properties directly on the map for instant details and intelligence.'
-    },
-    {
-      icon: Building2,
-      title: 'Digital Asset Gallery',
-      desc: 'Browse our curated collection with advanced filtering by category—Residential, Commercial, Villa, or Penthouse. Every listing features high-resolution imagery and detailed specifications.'
-    }
+    { icon: Map, title: 'Satellite Intel', desc: 'Real-time neighborhood intelligence backed by Google Maps grounding.' },
+    { icon: Sparkles, title: 'AI Dossiers', desc: 'Sophisticated market analyses synthesizing appreciation trends and yields.' },
+    { icon: Building2, title: 'Digital Gallery', desc: 'Curated collection with advanced filtering and high-res imagery.' }
   ];
 
   return (
     <>
       <SEO {...pageSEO.home} />
-      <Hero />
-      <VideoSection />
-      <FeaturedSlider />
+      <style>{`
+        @keyframes fade-up { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-up { animation: fade-up 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0F382E; }
+        ::-webkit-scrollbar-thumb { background: #F0C05A; border-radius: 3px; }
+      `}</style>
 
-      {/* Enhanced Services Section */}
-      <section id="services" className="py-32 bg-oak text-white overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center max-w-3xl mx-auto mb-24">
-             <span className="text-gold uppercase tracking-[0.5em] text-[10px] font-bold block mb-4">The Portfolio</span>
-             <h2 className="font-serif text-5xl mb-6">Unrivaled Excellence</h2>
-             <p className="text-gray-400 font-light leading-relaxed text-lg">Defining the premium landscape of Accra with integrity, architectural foresight, and cutting-edge technology. Every NewOak development is a meticulous blend of Ghanaian heritage and global luxury standards.</p>
+      <Hero />
+      <FeaturedSlider />
+      <VideoSection />
+
+      {/* Services Section */}
+      <section id="services" className="py-40 bg-white text-oak relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="text-center max-w-3xl mx-auto mb-24 cursor-default">
+            <ScrollReveal variant="fade-up" delay={0}>
+              <span className="text-gold uppercase tracking-[0.4em] text-[10px] font-bold block mb-6">The New Standard</span>
+            </ScrollReveal>
+            <ScrollReveal variant="fade-up" delay={100}>
+              <h2 className="font-serif text-5xl md:text-6xl mb-8 text-oak">Excellence Within Reach</h2>
+            </ScrollReveal>
+            <ScrollReveal variant="fade-up" delay={200}>
+              <p className="text-gray-500 font-light leading-relaxed text-lg mx-auto max-w-2xl">
+                We believe the path to premium homeownership should be as seamless as the lifestyle it offers.
+              </p>
+            </ScrollReveal>
           </div>
 
-          {/* Services Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-32">
-            {services.map((s, i) => (
-              <div key={i} className="group p-10 border border-white/5 hover:border-gold/30 transition-all duration-500 bg-white/0 hover:bg-white/[0.02] rounded-sm">
-                <div className="flex items-start gap-8">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-16 bg-gold/10 rounded-sm flex items-center justify-center group-hover:bg-gold/20 transition-colors">
-                      <s.icon className="w-8 h-8 text-gold" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-10 mb-32">
+            {isLoading ? [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[400px] rounded-2xl" />) : displayServices.map((s, i) => {
+              const Icon = IconMap[s.icon] || Shield;
+              return (
+                <div key={i} className="group relative h-[400px] rounded-2xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-700">
+                  <ImageComponent src={s.image} alt={s.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-oak/90 via-oak/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-500"></div>
+                  <div className="absolute inset-0 p-10 flex flex-col justify-end">
+                    <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                      <div className="bg-white/10 w-fit p-3 rounded-xl backdrop-blur-md border border-white/20 mb-6 group-hover:bg-gold group-hover:border-gold transition-colors duration-500">
+                        <Icon className="w-6 h-6 text-white" strokeWidth={1.5} />
+                      </div>
+                      <h3 className="font-serif text-3xl text-white mb-3">{s.title}</h3>
+                      <p className="text-white/80 font-light leading-relaxed mb-6 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 line-clamp-3">{s.description}</p>
                     </div>
                   </div>
-                  <div className="flex-grow">
-                    <h3 className="font-serif text-2xl mb-4">{s.title}</h3>
-                    <p className="text-gray-400 text-sm leading-relaxed font-light mb-6">{s.desc}</p>
-                    <div className="flex flex-wrap gap-3">
-                      {s.features.map((feature, fi) => (
-                        <span key={fi} className="inline-flex items-center gap-2 text-[10px] uppercase tracking-widest text-gold/80 bg-gold/5 px-4 py-2 rounded-full border border-gold/10">
-                          <CheckCircle2 size={12} />
-                          {feature}
-                        </span>
-                      ))}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Platform Features - Visual Break */}
+          <div className="bg-oak text-white py-24 -mx-6 px-6 mb-32 relative overflow-hidden">
+            <div className="max-w-7xl mx-auto relative z-10 grid grid-cols-1 md:grid-cols-3 gap-12 pt-16 border-t border-white/10">
+              {platformFeatures.map((feature, i) => (
+                <div key={i} className="group">
+                  <div className="mb-6 inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/5 border border-white/10 text-gold group-hover:bg-gold group-hover:text-oak transition-all">
+                    <feature.icon size={20} strokeWidth={1.5} />
+                  </div>
+                  <h4 className="font-serif text-2xl mb-3 text-white">{feature.title}</h4>
+                  <p className="text-gray-400/80 text-sm leading-relaxed font-light">{feature.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Design Gallery */}
+          <section className="py-32 bg-white relative">
+            <div className="max-w-7xl mx-auto mb-16 flex justify-between items-end">
+              <div>
+                <ScrollReveal variant="fade-up" delay={0}>
+                  <span className="text-gold uppercase tracking-[0.3em] text-[10px] font-bold block mb-4">The Aesthetic</span>
+                </ScrollReveal>
+                <ScrollReveal variant="fade-up" delay={100}>
+                  <h2 className="font-serif text-4xl md:text-5xl text-oak">Curated <span className="italic text-gold">Amenities</span></h2>
+                </ScrollReveal>
+              </div>
+              <div className="hidden md:block">
+                <ScrollReveal variant="slide-in-right" delay={200}>
+                  <Link to="/gallery" className="flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-oak hover:text-gold transition-colors"><span>View Full Gallery</span><ArrowRight size={14} /></Link>
+                </ScrollReveal>
+              </div>
+            </div>
+            {isLoading ? (
+              <div className="max-w-[1920px] mx-auto grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-4 px-4 h-[800px]">
+                <Skeleton className="md:col-span-2 md:row-span-2 rounded-sm" />
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="md:col-span-1 md:row-span-1 rounded-sm" />)}
+              </div>
+            ) : (
+              <div className="max-w-[1920px] mx-auto grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-4 px-4 h-[800px]">
+                <div className="md:col-span-2 md:row-span-2 relative group overflow-hidden rounded-sm cursor-pointer">
+                  <ImageComponent src={mainItem?.image} alt={mainItem?.title} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" />
+                  <div className="absolute inset-0 bg-transparent group-hover:bg-oak/20 transition-colors duration-500"></div>
+                  <div className="absolute bottom-8 left-8 p-6 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-sm translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                    <p className="font-serif text-2xl mb-1">{mainItem?.title}</p>
+                    <p className="text-[10px] uppercase tracking-widest font-bold">{mainItem?.subtitle}</p>
+                  </div>
+                </div>
+                {otherItems.map((item, index) => (
+                  <div key={index} className="md:col-span-1 md:row-span-1 relative group overflow-hidden rounded-sm cursor-pointer">
+                    <ImageComponent src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-oak/0 group-hover:bg-oak/10 transition-colors"></div>
+                    <div className="absolute inset-0 flex flex-col justify-end p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                      <p className="text-white font-serif text-lg translate-y-4 group-hover:translate-y-0 transition-transform duration-500">{item.title}</p>
                     </div>
                   </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <TeamSection />
+
+          {/* Testimonials */}
+          <div className="relative py-32 overflow-hidden mt-32">
+            <div className="absolute inset-0 z-0">
+              <ImageComponent src="https://images.unsplash.com/photo-1631679706909-1844bbd07221?auto=format&fit=crop&q=80&w=2000" className="w-full h-full object-cover opacity-20 filter grayscale" alt="Architectural sketch" />
+              <div className="absolute inset-0 bg-gradient-to-t from-white via-white/80 to-white/90"></div>
+            </div>
+            <div className="bg-white/40 backdrop-blur-sm rounded-none md:rounded-3xl p-8 md:p-24 border border-white/50 shadow-2xl relative z-10 max-w-6xl mx-auto">
+              <Quote className="absolute top-10 left-10 text-oak/5 w-40 h-40 -rotate-12" />
+              <div className="relative z-10 mx-auto text-center">
+                <span className="text-gold uppercase tracking-[0.5em] text-[10px] font-bold block mb-8">Client Success</span>
+                <h3 className="font-serif text-4xl md:text-5xl mb-20 text-oak">Trusted Voices</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
+                  {testimonials.map((testimonial, i) => (
+                    <div key={i} className="bg-white/80 backdrop-blur-xl p-8 shadow-sm hover:shadow-xl border border-white/60 hover:border-gold/30 transition-all duration-500 rounded-xl group">
+                      <div className="flex mb-6">
+                        <div className="flex gap-1">{[...Array(testimonial.rating)].map((_, si) => <Star key={si} size={12} className="text-gold fill-gold" />)}</div>
+                      </div>
+                      <p className="text-oak/80 text-sm leading-7 font-serif italic mb-8 relative"><span className="text-4xl text-gold/20 absolute -top-4 -left-2 font-serif">"</span>{testimonial.quote}</p>
+                      <div className="flex items-center gap-4 pt-6 border-t border-gray-100 group-hover:border-gold/20 transition-colors">
+                        <div className="w-10 h-10 rounded-full bg-oak/5 flex items-center justify-center text-oak font-bold font-serif">{testimonial.name[0]}</div>
+                        <div><p className="font-bold text-xs text-oak uppercase tracking-wide">{testimonial.name}</p><p className="text-gold text-[9px] uppercase tracking-widest">{testimonial.title}</p></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* Platform Features Section */}
-          <div className="border-t border-white/10 pt-24 mb-32">
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <span className="text-gold uppercase tracking-[0.5em] text-[10px] font-bold block mb-4">Digital Intelligence</span>
-              <h3 className="font-serif text-4xl mb-6">Powered by Advanced Technology</h3>
-              <p className="text-gray-400 font-light leading-relaxed">Our digital platform delivers unprecedented insights. Explore properties through intelligent maps, generate AI-powered investment reports, and access verified neighborhood data—all at your fingertips.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {platformFeatures.map((feature, i) => (
-                <div key={i} className="text-center group">
-                  <div className="w-20 h-20 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:bg-gold group-hover:scale-110 transition-all duration-500">
-                    <feature.icon className="w-8 h-8 text-gold group-hover:text-white transition-colors" />
-                  </div>
-                  <h4 className="font-serif text-xl mb-3">{feature.title}</h4>
-                  <p className="text-gray-500 text-xs leading-relaxed font-light">{feature.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="text-center mt-16">
-              <Link to="/gallery" className="inline-flex items-center gap-3 bg-gold text-white px-10 py-5 rounded-full font-bold uppercase tracking-widest text-[10px] hover:bg-gold-dark transition-all shadow-xl shadow-gold/20">
-                <span>Explore the Gallery</span>
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-          </div>
-
-          {/* Testimonials Section */}
-          <div className="border-t border-white/10 pt-24">
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <span className="text-gold uppercase tracking-[0.5em] text-[10px] font-bold block mb-4">Client Success</span>
-              <h3 className="font-serif text-4xl mb-6">Trusted by Discerning Investors</h3>
-              <p className="text-gray-400 font-light leading-relaxed">Our commitment to excellence has earned the trust of investors across Ghana and the diaspora. Hear from those who have experienced the NewOak difference.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {testimonials.map((testimonial, i) => (
-                <div key={i} className="bg-white/[0.02] border border-white/5 p-10 rounded-sm hover:border-gold/20 transition-all duration-500 group">
-                  <div className="flex gap-1 mb-6">
-                    {[...Array(testimonial.rating)].map((_, si) => (
-                      <Star key={si} size={16} className="text-gold fill-gold" />
-                    ))}
-                  </div>
-                  <Quote className="w-10 h-10 text-gold/20 mb-6" />
-                  <p className="text-gray-300 text-sm leading-relaxed font-light mb-8 italic">"{testimonial.quote}"</p>
-                  <div className="border-t border-white/5 pt-6">
-                    <p className="font-serif text-lg text-white mb-1">{testimonial.name}</p>
-                    <p className="text-gold text-[10px] uppercase tracking-widest font-bold">{testimonial.title}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Stats Section */}
-          <div className="border-t border-white/10 mt-24 pt-24">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
-              {[
-                { value: '15+', label: 'Premium Properties' },
-                { value: '98%', label: 'Client Satisfaction' },
-                { value: '40%', label: 'Avg. ROI Growth' },
-                { value: '24/7', label: 'Concierge Support' }
-              ].map((stat, i) => (
-                <div key={i} className="group">
-                  <span className="font-serif text-5xl md:text-6xl text-gold block mb-4 group-hover:scale-110 transition-transform">{stat.value}</span>
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold">{stat.label}</span>
-                </div>
-              ))}
             </div>
           </div>
         </div>

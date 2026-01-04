@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Phone, MapPin, Mail, Instagram, Linkedin, Twitter } from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 import { Logo } from './Logo';
+import { Chatbot } from './Chatbot';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -22,9 +23,9 @@ const Navbar: React.FC = () => {
     <nav className={`fixed w-full z-50 transition-all duration-300 ${isTransparent ? 'bg-transparent text-white' : 'bg-white text-oak shadow-md py-4'}`}>
       <div className="max-w-7xl mx-auto px-6 flex justify-between items-center h-16">
         <Link to="/" className="flex items-center">
-          <Logo 
-            className="h-10 md:h-12 mr-2" 
-            variant={isTransparent ? 'light' : 'dark'} 
+          <Logo
+            className="h-10 md:h-12 mr-2"
+            variant={isTransparent ? 'light' : 'dark'}
             showText={true}
           />
         </Link>
@@ -32,9 +33,9 @@ const Navbar: React.FC = () => {
         {/* Desktop Links */}
         <div className="hidden md:flex items-center space-x-8">
           {NAV_LINKS.map(link => (
-            <Link 
-              key={link.path} 
-              to={link.path} 
+            <Link
+              key={link.path}
+              to={link.path}
               className="text-sm uppercase tracking-widest hover:text-gold transition-colors font-medium"
             >
               {link.name}
@@ -55,9 +56,9 @@ const Navbar: React.FC = () => {
       {isOpen && (
         <div className="md:hidden bg-white text-oak absolute top-full left-0 w-full shadow-xl p-6 flex flex-col space-y-6 animate-in slide-in-from-top duration-300">
           {NAV_LINKS.map(link => (
-            <Link 
-              key={link.path} 
-              to={link.path} 
+            <Link
+              key={link.path}
+              to={link.path}
               onClick={() => setIsOpen(false)}
               className="text-lg font-serif border-b border-gray-100 pb-2"
             >
@@ -78,7 +79,7 @@ const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="bg-oak text-white pt-20 pb-10 font-sans">
+    <footer className="bg-oak-dark text-white pt-20 pb-10 font-sans">
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 border-b border-gray-800 pb-12 mb-10">
         <div className="space-y-6">
           <Link to="/" className="flex flex-col items-start">
@@ -142,6 +143,9 @@ const Footer: React.FC = () => {
               <div className="pl-7">
                 <span>0244098615 | 0243803086</span>
               </div>
+              <div className="pl-7 mt-1">
+                <span>UK : +44 784 554 3919</span>
+              </div>
             </li>
           </ul>
         </div>
@@ -150,9 +154,9 @@ const Footer: React.FC = () => {
           <h4 className="font-serif text-xl text-gold mb-6">Inquiry</h4>
           <p className="text-xs text-gray-400 mb-4">Request a property catalog for our newest developments.</p>
           <div className="flex">
-            <input 
-              type="email" 
-              placeholder="Email address" 
+            <input
+              type="email"
+              placeholder="Email address"
               className="bg-transparent border border-gray-700 px-4 py-2 w-full focus:outline-none focus:border-gold text-sm"
             />
             <button className="bg-gold px-4 py-2 hover:bg-gold-dark transition-colors">Join</button>
@@ -196,6 +200,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <div className="flex-grow">{children}</div>
+      <Chatbot />
       <Footer />
     </div>
   );

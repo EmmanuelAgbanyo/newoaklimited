@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   MapPin, ChevronLeft, CheckCircle2, X, Loader2, Sparkles, FileText, Search, Check, ExternalLink, Map as MapIcon
 } from 'lucide-react';
+import { ImageComponent } from '../components/ImageComponent';
 import { INITIAL_PROPERTIES } from '../constants';
 import { geminiService, GroundingSource } from '../services/geminiService';
 import { Property, Booking, BookingStatus } from '../types';
@@ -19,11 +20,11 @@ export const PropertyDetail: React.FC = () => {
   const [showLightbox, setShowLightbox] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  
+
   // Grounding State
   const [intel, setIntel] = useState<{ text: string; sources: GroundingSource[] } | null>(null);
   const [isLoadingIntel, setIsLoadingIntel] = useState(false);
-  
+
   const [formData, setFormData] = useState({ name: '', email: '', date: '' });
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -36,7 +37,7 @@ export const PropertyDetail: React.FC = () => {
       if (data) {
         const found = { ...data, id };
         setProperty(found);
-        
+
         setIsLoadingIntel(true);
         geminiService.getNeighborhoodInsights(found.location, found.coordinates?.lat, found.coordinates?.lng).then(data => {
           setIntel(data);
@@ -55,11 +56,11 @@ export const PropertyDetail: React.FC = () => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.date || !property) return;
     setIsSubmitting(true);
-    
+
     try {
       const inquiriesRef = ref(db, 'inquiries');
       const newInquiryRef = push(inquiriesRef);
-      
+
       const newInquiry: Omit<Booking, 'id'> = {
         propertyId: id || property.id,
         propertyName: property.title,
@@ -72,7 +73,7 @@ export const PropertyDetail: React.FC = () => {
       };
 
       await firebaseSet(newInquiryRef, newInquiry);
-      
+
       setIsSubmitting(false);
       setIsSuccess(true);
       setFormData({ name: '', email: '', date: '' });
@@ -113,8 +114,8 @@ export const PropertyDetail: React.FC = () => {
       <SEO {...getPropertySEO(property)} />
       {showLightbox && (
         <div className="fixed inset-0 z-[200] bg-oak/98 flex items-center justify-center p-10 animate-in fade-in duration-500">
-           <button onClick={() => setShowLightbox(false)} className="absolute top-10 right-10 text-white hover:text-gold transition-colors active:scale-90"><X size={40} /></button>
-           <img src={property.images[activeImg]} className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)]" alt="Full view" />
+          <button onClick={() => setShowLightbox(false)} className="absolute top-10 right-10 text-white hover:text-gold transition-colors active:scale-90"><X size={40} /></button>
+          <ImageComponent src={property.images[activeImg]} className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)]" alt="Full view" />
         </div>
       )}
 
@@ -128,27 +129,27 @@ export const PropertyDetail: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-20">
         <div className="lg:col-span-8 space-y-20">
           <div className="space-y-8">
-             <div className="aspect-[16/9] relative rounded-sm overflow-hidden luxury-shadow bg-gray-100 group cursor-pointer" onClick={() => setShowLightbox(true)}>
-                <img src={property.images[activeImg]} className="w-full h-full object-cover transition-transform duration-[3s] group-hover:scale-110" alt="" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
-                <div className="absolute bottom-10 left-10 flex items-center space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <div className="bg-white/20 backdrop-blur-md p-4 rounded-full text-white border border-white/20">
-                      <Search size={20} />
-                   </div>
-                   <span className="text-white text-[10px] uppercase font-bold tracking-widest">Enlarge Asset Image</span>
+            <div className="aspect-[16/9] relative rounded-sm overflow-hidden luxury-shadow bg-gray-100 group cursor-pointer" onClick={() => setShowLightbox(true)}>
+              <ImageComponent src={property.images[activeImg]} className="w-full h-full object-cover transition-transform duration-[3s] group-hover:scale-110" alt="" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
+              <div className="absolute bottom-10 left-10 flex items-center space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="bg-white/20 backdrop-blur-md p-4 rounded-full text-white border border-white/20">
+                  <Search size={20} />
                 </div>
-             </div>
-             <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide">
-               {property.images.map((img, idx) => (
-                 <button 
-                  key={idx} 
-                  onClick={() => setActiveImg(idx)} 
+                <span className="text-white text-[10px] uppercase font-bold tracking-widest">Enlarge Asset Image</span>
+              </div>
+            </div>
+            <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide">
+              {property.images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImg(idx)}
                   className={`w-32 aspect-[4/3] flex-shrink-0 rounded-sm overflow-hidden border-2 transition-all hover:scale-105 ${activeImg === idx ? 'border-gold opacity-100' : 'border-transparent opacity-40 hover:opacity-100'}`}
                 >
-                    <img src={img} className="w-full h-full object-cover" alt="" />
-                 </button>
-               ))}
-             </div>
+                  <ImageComponent src={img} className="w-full h-full object-cover" alt="" />
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="border-b border-gray-100 pb-16 space-y-10">
@@ -157,13 +158,13 @@ export const PropertyDetail: React.FC = () => {
               <div className="w-12 h-px bg-gold/30"></div>
               <span className="text-gray-400 text-[9px] uppercase tracking-widest font-medium">Asset Ref: NOAK-EXC-{id}</span>
             </div>
-            
+
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10">
-               <h1 className="font-serif text-7xl text-oak leading-[0.9] max-w-2xl">{property.title}</h1>
-               <div className="text-left md:text-right space-y-2">
-                  <span className="text-gold uppercase tracking-[0.3em] text-[10px] font-bold block">Market Status</span>
-                  <span className="text-4xl font-serif italic text-oak block">Consultation Price</span>
-               </div>
+              <h1 className="font-serif text-7xl text-oak leading-[0.9] max-w-2xl">{property.title}</h1>
+              <div className="text-left md:text-right space-y-2">
+                <span className="text-gold uppercase tracking-[0.3em] text-[10px] font-bold block">Market Status</span>
+                <span className="text-4xl font-serif italic text-oak block">Consultation Price</span>
+              </div>
             </div>
             <div className="flex items-center text-gray-400 text-sm space-x-3 bg-gray-50 px-6 py-4 rounded-sm w-fit border border-gray-100">
               <MapPin size={16} className="text-gold" />
@@ -172,17 +173,17 @@ export const PropertyDetail: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 py-12 border-b border-gray-50">
-             {[
-               { val: property.beds, label: 'Master Suites' },
-               { val: property.baths, label: 'Luxury Baths' },
-               { val: property.sqft.toLocaleString(), label: 'Internal SQFT' },
-               { val: '24/7 Gated', label: 'Security Protocols' }
-             ].map((spec, i) => (
-               <div key={i} className="space-y-3 group">
-                  <span className="font-serif text-4xl text-oak block group-hover:text-gold transition-colors duration-500">{spec.val}</span>
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold block">{spec.label}</span>
-               </div>
-             ))}
+            {[
+              { val: property.beds, label: 'Master Suites' },
+              { val: property.baths, label: 'Luxury Baths' },
+              { val: property.sqft ? property.sqft.toLocaleString() : undefined, label: 'Internal SQFT' },
+              { val: '24/7 Gated', label: 'Security Protocols' }
+            ].filter(spec => spec.val !== undefined).map((spec, i) => (
+              <div key={i} className="space-y-3 group">
+                <span className="font-serif text-4xl text-oak block group-hover:text-gold transition-colors duration-500">{spec.val}</span>
+                <span className="text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold block">{spec.label}</span>
+              </div>
+            ))}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
@@ -196,148 +197,148 @@ export const PropertyDetail: React.FC = () => {
               </div>
 
               <div className="space-y-8 pt-10 border-t border-gray-50">
-                 <div className="flex items-center justify-between">
-                    <h4 className="font-serif text-3xl text-oak">Neighborhood Intel</h4>
-                    <div className="flex items-center space-x-2 text-gold animate-pulse">
-                       <MapIcon size={14} />
-                       <span className="text-[9px] uppercase font-bold tracking-[0.3em]">Live Grounding Active</span>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-serif text-3xl text-oak">Neighborhood Intel</h4>
+                  <div className="flex items-center space-x-2 text-gold animate-pulse">
+                    <MapIcon size={14} />
+                    <span className="text-[9px] uppercase font-bold tracking-[0.3em]">Live Grounding Active</span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-10 rounded-sm border-l-4 border-gold relative overflow-hidden group">
+                  {isLoadingIntel ? (
+                    <div className="flex flex-col items-center py-10 text-gold space-y-4">
+                      <Loader2 className="animate-spin w-8 h-8" />
+                      <span className="text-[10px] uppercase tracking-[0.4em] font-bold">Accessing Google Maps Grid...</span>
                     </div>
-                 </div>
-                 
-                 <div className="bg-gray-50 p-10 rounded-sm border-l-4 border-gold relative overflow-hidden group">
-                    {isLoadingIntel ? (
-                      <div className="flex flex-col items-center py-10 text-gold space-y-4">
-                         <Loader2 className="animate-spin w-8 h-8" />
-                         <span className="text-[10px] uppercase tracking-[0.4em] font-bold">Accessing Google Maps Grid...</span>
+                  ) : intel ? (
+                    <div className="space-y-8 animate-in fade-in duration-1000">
+                      <p className="text-gray-500 text-base font-light leading-relaxed">{intel.text}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {intel.sources.map((source, i) => (
+                          <a
+                            key={i}
+                            href={source.uri}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white border border-gray-100 p-4 flex items-center justify-between hover:border-gold hover:shadow-lg transition-all group/link"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-gold/10 rounded-full flex items-center justify-center text-gold group-hover/link:bg-gold group-hover/link:text-white transition-colors">
+                                <MapPin size={14} />
+                              </div>
+                              <span className="text-[10px] uppercase font-bold tracking-widest text-oak truncate max-w-[150px]">{source.title}</span>
+                            </div>
+                            <ExternalLink size={12} className="text-gray-300 group-hover/link:text-gold" />
+                          </a>
+                        ))}
                       </div>
-                    ) : intel ? (
-                      <div className="space-y-8 animate-in fade-in duration-1000">
-                        <p className="text-gray-500 text-base font-light leading-relaxed">{intel.text}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {intel.sources.map((source, i) => (
-                            <a 
-                              key={i} 
-                              href={source.uri} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="bg-white border border-gray-100 p-4 flex items-center justify-between hover:border-gold hover:shadow-lg transition-all group/link"
-                            >
-                               <div className="flex items-center space-x-3">
-                                  <div className="w-8 h-8 bg-gold/10 rounded-full flex items-center justify-center text-gold group-hover/link:bg-gold group-hover/link:text-white transition-colors">
-                                     <MapPin size={14} />
-                                  </div>
-                                  <span className="text-[10px] uppercase font-bold tracking-widest text-oak truncate max-w-[150px]">{source.title}</span>
-                               </div>
-                               <ExternalLink size={12} className="text-gray-300 group-hover/link:text-gold" />
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    ) : <p className="text-gray-400 text-sm italic">Verified data synthesis active.</p>}
-                 </div>
+                    </div>
+                  ) : <p className="text-gray-400 text-sm italic">Verified data synthesis active.</p>}
+                </div>
               </div>
             </div>
-            
+
             {/* Dossier AI Report */}
             <div className="bg-oak p-10 text-white rounded-sm luxury-shadow relative overflow-hidden h-fit lg:mt-[-150px] z-10">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-               <div className="relative z-10">
-                  <div className="flex items-center space-x-4 mb-10">
-                    <Sparkles className="text-gold w-6 h-6" />
-                    <h3 className="font-serif text-2xl">Investment Dossier</h3>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+              <div className="relative z-10">
+                <div className="flex items-center space-x-4 mb-10">
+                  <Sparkles className="text-gold w-6 h-6" />
+                  <h3 className="font-serif text-2xl">Investment Dossier</h3>
+                </div>
+
+                {isGeneratingReport ? (
+                  <div className="flex flex-col items-center py-20 text-gold space-y-6">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <p className="text-[9px] uppercase tracking-[0.4em] font-bold text-center">Synthesizing Asset Value...</p>
                   </div>
-                  
-                  {isGeneratingReport ? (
-                    <div className="flex flex-col items-center py-20 text-gold space-y-6">
-                       <Loader2 className="w-6 h-6 animate-spin" />
-                       <p className="text-[9px] uppercase tracking-[0.4em] font-bold text-center">Synthesizing Asset Value...</p>
+                ) : aiReport ? (
+                  <div className="animate-in fade-in duration-1000">
+                    <div className="text-gray-400 text-sm leading-relaxed font-light prose prose-invert max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
+                      {aiReport}
                     </div>
-                  ) : aiReport ? (
-                    <div className="animate-in fade-in duration-1000">
-                      <div className="text-gray-400 text-sm leading-relaxed font-light prose prose-invert max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
-                        {aiReport}
-                      </div>
-                      <button className="mt-10 w-full border border-gold/40 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all">Download Strategic Report</button>
-                    </div>
-                  ) : (
-                    <div className="space-y-8">
-                       <p className="text-gray-500 text-xs italic font-light">Generate a sophisticated AI-powered synthesis of market growth and architectural value for this enclave.</p>
-                       <button 
-                        onClick={generateAIReport}
-                        className="w-full bg-gold text-white py-5 rounded-sm font-bold uppercase tracking-widest text-[10px] hover:bg-gold-dark transition-all flex items-center justify-center space-x-3 shadow-2xl shadow-gold/20 active:scale-95"
-                      >
-                         <span>Generate AI Analysis</span>
-                         <Sparkles size={14} />
-                      </button>
-                    </div>
-                  )}
-               </div>
+                    <button className="mt-10 w-full border border-gold/40 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all">Download Strategic Report</button>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    <p className="text-gray-500 text-xs italic font-light">Generate a sophisticated AI-powered synthesis of market growth and architectural value for this enclave.</p>
+                    <button
+                      onClick={generateAIReport}
+                      className="w-full bg-gold text-white py-5 rounded-sm font-bold uppercase tracking-widest text-[10px] hover:bg-gold-dark transition-all flex items-center justify-center space-x-3 shadow-2xl shadow-gold/20 active:scale-95"
+                    >
+                      <span>Generate AI Analysis</span>
+                      <Sparkles size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Action Panel */}
         <div className="lg:col-span-4 h-fit">
-           <div className="bg-white p-12 rounded-sm border border-gray-100 shadow-2xl sticky top-32">
-              {isSuccess ? (
-                <div className="text-center py-16 animate-in zoom-in-95 duration-500">
-                  <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center text-green-600 mx-auto mb-10 border border-green-100">
-                    <Check size={40} strokeWidth={1.5} />
-                  </div>
-                  <h4 className="font-serif text-3xl text-oak mb-4">Inquiry Recorded</h4>
-                  <p className="text-gray-400 text-sm leading-relaxed mb-10 font-light px-4">An executive advisor will contact you within 4 business hours.</p>
-                  <button onClick={() => setIsSuccess(false)} className="text-[10px] font-bold uppercase tracking-[0.4em] text-gold hover:underline">New Inquiry Request</button>
+          <div className="bg-white p-12 rounded-sm border border-gray-100 shadow-2xl sticky top-32">
+            {isSuccess ? (
+              <div className="text-center py-16 animate-in zoom-in-95 duration-500">
+                <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center text-green-600 mx-auto mb-10 border border-green-100">
+                  <Check size={40} strokeWidth={1.5} />
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-4 mb-12">
-                    <h4 className="font-serif text-4xl text-oak">Reserve Viewing</h4>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-[0.3em] font-bold">Standard Consultation Access</p>
+                <h4 className="font-serif text-3xl text-oak mb-4">Inquiry Recorded</h4>
+                <p className="text-gray-400 text-sm leading-relaxed mb-10 font-light px-4">An executive advisor will contact you within 4 business hours.</p>
+                <button onClick={() => setIsSuccess(false)} className="text-[10px] font-bold uppercase tracking-[0.4em] text-gold hover:underline">New Inquiry Request</button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4 mb-12">
+                  <h4 className="font-serif text-4xl text-oak">Reserve Viewing</h4>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-[0.3em] font-bold">Standard Consultation Access</p>
+                </div>
+                <form onSubmit={handleConsultationSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Legal Representative</label>
+                    <input
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Full Legal Name"
+                      className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm"
+                    />
                   </div>
-                  <form onSubmit={handleConsultationSubmit} className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Legal Representative</label>
-                      <input 
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        placeholder="Full Legal Name" 
-                        className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm" 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Primary Email</label>
-                      <input 
-                        required
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        placeholder="Email Address" 
-                        className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm" 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Preferred Consultation Date</label>
-                      <input 
-                        required
-                        type="date" 
-                        value={formData.date}
-                        onChange={(e) => setFormData({...formData, date: e.target.value})}
-                        className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm" 
-                      />
-                    </div>
-                    <button 
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full bg-gold text-white py-6 rounded-sm text-[10px] font-bold uppercase tracking-[0.4em] hover:bg-oak hover:shadow-2xl transition-all shadow-lg shadow-gold/20 flex items-center justify-center space-x-3 active:scale-95 disabled:opacity-50"
-                    >
-                      {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Initialize Contact</span>}
-                    </button>
-                    <p className="text-[9px] text-center text-gray-400 mt-6 tracking-widest font-light">CONFIDENTIALITY ASSURED &bull; NEWOAK GLO-SEC PROTOCOL</p>
-                  </form>
-                </>
-              )}
-           </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Primary Email</label>
+                    <input
+                      required
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="Email Address"
+                      className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Preferred Consultation Date</label>
+                    <input
+                      required
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-gold text-white py-6 rounded-sm text-[10px] font-bold uppercase tracking-[0.4em] hover:bg-oak hover:shadow-2xl transition-all shadow-lg shadow-gold/20 flex items-center justify-center space-x-3 active:scale-95 disabled:opacity-50"
+                  >
+                    {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Initialize Contact</span>}
+                  </button>
+                  <p className="text-[9px] text-center text-gray-400 mt-6 tracking-widest font-light">CONFIDENTIALITY ASSURED &bull; NEWOAK GLO-SEC PROTOCOL</p>
+                </form>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
