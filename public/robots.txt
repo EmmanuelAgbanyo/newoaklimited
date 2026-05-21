@@ -1,5 +1,5 @@
 # robots.txt for NewOak Company Limited
-# https://newoak4.netlify.app/
+# https://www.newoakcompanylimited.com/
 
 User-agent: *
 Allow: /
@@ -43,4 +43,4 @@ Disallow: /
 Crawl-delay: 1
 
 # Sitemap location
-Sitemap: https://newoak4.netlify.app/sitemap.xml
+Sitemap: https://www.newoakcompanylimited.com/sitemap.xml

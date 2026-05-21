@@ -14,10 +14,10 @@ interface SEOProps {
   structuredData?: object;
 }
 
-const BASE_URL = 'https://newoak4.netlify.app';
+const BASE_URL = 'https://www.newoakcompanylimited.com';
 const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?auto=format&fit=crop&q=80&w=1200';
 const DEFAULT_DESCRIPTION = "NewOak Company Limited is Ghana's premier luxury real estate developer. Explore premium properties, penthouses, villas and residential estates in Haatso, Ashongman Estate, and Accra.";
-const DEFAULT_KEYWORDS = 'luxury real estate Ghana, Accra properties, NewOak, Haatso real estate, Ashongman Estate, Ghana property investment, diaspora investment Ghana, premium homes Accra';
+const DEFAULT_KEYWORDS = 'NewOak, NewOak Company Limited, NewOak Limited, luxury real estate Ghana, Accra properties, Haatso real estate, Ashongman Estate, Ghana property investment, diaspora investment Ghana, premium homes Accra, real estate developer Ghana, New Oak Heights, luxury villas Accra, buy house Accra';
 
 export const SEO: React.FC<SEOProps> = ({
   title,
@@ -184,13 +184,13 @@ export const getBlogPostSEO = (post: {
       name: 'NewOak Company Limited',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://newoak4.netlify.app/logo.png',
+        url: `${BASE_URL}/logo.png`,
       },
     },
     datePublished: post.publishedAt,
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://newoak4.netlify.app/#/blog/${post.slug}`,
+      '@id': `${BASE_URL}/#/blog/${post.slug}`,
     },
   },
 });
