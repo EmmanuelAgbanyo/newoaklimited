@@ -12,7 +12,7 @@ import { Property, PropertyCategory, Booking, BookingStatus, UpcomingProject, Pr
 import { Logo } from '../components/Logo';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from 'firebase/auth';
 import { ref, onValue, set, push, remove, update } from 'firebase/database';
 
 const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
@@ -342,9 +342,29 @@ export const Admin: React.FC = () => {
     setIsLoggingIn(true);
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
     } catch (error: any) {
-      setLoginError(error.message || "Google Authentication failed. Please try again.");
+      console.warn("Google popup login failed, trying redirect fallback:", error);
+      const isBrowserBlock = 
+        error.code === 'auth/popup-blocked' || 
+        error.code === 'auth/web-storage-unsupported' ||
+        error.message?.toLowerCase().includes('popup') ||
+        error.message?.toLowerCase().includes('storage') ||
+        error.message?.toLowerCase().includes('blocked') ||
+        error.message?.toLowerCase().includes('cookie');
+
+      if (isBrowserBlock) {
+        try {
+          setLoginError("Browser blocked popup auth. Initializing secure redirect sign-in instead...");
+          const provider = new GoogleAuthProvider();
+          await signInWithRedirect(auth, provider);
+        } catch (redirectError: any) {
+          setLoginError(`Google Authentication failed: ${error.message} (Redirect error: ${redirectError.message})`);
+        }
+      } else {
+        setLoginError(error.message || "Google Authentication failed. Please try again.");
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -1178,9 +1198,12 @@ export const Admin: React.FC = () => {
             </div>
 
             {loginError && (
-              <div className="bg-red-50 p-4 rounded-xl flex items-center space-x-3 text-red-600 animate-in fade-in slide-in-from-top-2">
-                <AlertTriangle size={16} />
-                <p className="text-[10px] font-bold uppercase tracking-widest">Authentication Failed</p>
+              <div className="bg-red-50 p-4 rounded-xl flex flex-col space-y-1.5 text-red-600 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center space-x-3">
+                  <AlertTriangle size={16} />
+                  <p className="text-[10px] font-bold uppercase tracking-widest">Authentication Failed</p>
+                </div>
+                <p className="text-[10px] text-left text-red-500 font-medium leading-relaxed break-words">{loginError}</p>
               </div>
             )}
 
