@@ -100,6 +100,7 @@ export interface GalleryItem {
   subtitle: string;
   image: string;
   isMain?: boolean; // If true, takes the large 2x2 slot
+  order?: number;   // Visual sorting index
   createdAt: string;
 }
 

@@ -7,12 +7,12 @@ import {
   AlertTriangle, Database, Cpu, PanelLeftClose, PanelLeftOpen, Building2, Calendar, MapPin, Loader2, Image as ImageIcon,
   GripVertical, ChevronDown, ChevronRight, Mail, Lock, Hammer, FileText, Newspaper, Layers
 } from 'lucide-react';
-import { INITIAL_PROPERTIES } from '../constants';
+import { INITIAL_PROPERTIES, INITIAL_SERVICES, INITIAL_GALLERY, INITIAL_TEAM, INITIAL_UPCOMING_PROJECTS } from '../constants';
 import { Property, PropertyCategory, Booking, BookingStatus, UpcomingProject, ProjectStatus, BlogPost, TeamMember, GalleryItem, ServiceItem } from '../types';
 import { Logo } from '../components/Logo';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth, db } from '../services/firebase';
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { ref, onValue, set, push, remove, update } from 'firebase/database';
 
 const compressImage = (file: File, maxWidth = 1200, quality = 0.7): Promise<string> => {
@@ -66,6 +66,7 @@ export const Admin: React.FC = () => {
   const [hasCustomHero, setHasCustomHero] = useState(false);
   const [hasCustomVideo, setHasCustomVideo] = useState(false);
   const [heroImages, setHeroImages] = useState<string[]>([]);
+  const [showTeam, setShowTeam] = useState(true);
 
   // Property State
   const [properties, setProperties] = useState<Property[]>([]);
@@ -110,6 +111,46 @@ export const Admin: React.FC = () => {
   const [galleryImage, setGalleryImage] = useState<string>('');
   const galleryImageInputRef = useRef<HTMLInputElement>(null);
 
+  // Custom Toast State
+  interface Toast {
+    id: string;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  }
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  };
+
+  // Custom Delete Confirm State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {}
+  });
+
+  // Reordering state
+  const [draggedGalleryItemIndex, setDraggedGalleryItemIndex] = useState<number | null>(null);
+
+  // Bulk Upload states
+  const [isDraggingOverDropzone, setIsDraggingOverDropzone] = useState(false);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState('');
+
+
   // Services State
   const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
@@ -140,7 +181,7 @@ export const Admin: React.FC = () => {
         }));
         setProperties(list);
       } else {
-        setProperties([]);
+        setProperties(INITIAL_PROPERTIES);
       }
     });
 
@@ -177,6 +218,13 @@ export const Admin: React.FC = () => {
       setHasCustomVideo(!!snapshot.val());
     });
 
+    const showTeamRef = ref(db, 'settings/showTeamSection');
+    const unsubscribeShowTeam = onValue(showTeamRef, (snapshot) => {
+      // Default to true if not set
+      const val = snapshot.val();
+      setShowTeam(val !== false);
+    });
+
     // Upcoming Projects Listener
     const projectsRef = ref(db, 'upcomingProjects');
     const unsubscribeProjects = onValue(projectsRef, (snapshot) => {
@@ -188,7 +236,7 @@ export const Admin: React.FC = () => {
         }));
         setUpcomingProjects(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       } else {
-        setUpcomingProjects([]);
+        setUpcomingProjects(INITIAL_UPCOMING_PROJECTS);
       }
     });
 
@@ -218,7 +266,7 @@ export const Admin: React.FC = () => {
         }));
         setTeamMembers(list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
       } else {
-        setTeamMembers([]);
+        setTeamMembers(INITIAL_TEAM);
       }
     });
 
@@ -231,9 +279,18 @@ export const Admin: React.FC = () => {
           ...data[key],
           id: key
         }));
-        setGalleryItems(list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        // Premium visual ordering sort: sort by order index, then fall back to createdAt desc
+        const sorted = list.sort((a, b) => {
+          const orderA = a.order !== undefined ? a.order : 999999;
+          const orderB = b.order !== undefined ? b.order : 999999;
+          if (orderA !== orderB) {
+            return orderA - orderB;
+          }
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        setGalleryItems(sorted);
       } else {
-        setGalleryItems([]);
+        setGalleryItems(INITIAL_GALLERY);
       }
     });
 
@@ -248,7 +305,7 @@ export const Admin: React.FC = () => {
         }));
         setServiceItems(list.sort((a, b) => (a.order || 0) - (b.order || 0)));
       } else {
-        setServiceItems([]);
+        setServiceItems(INITIAL_SERVICES);
       }
     });
 
@@ -257,6 +314,7 @@ export const Admin: React.FC = () => {
       unsubscribeInquiries();
       unsubscribeHero();
       unsubscribeVideo();
+      unsubscribeShowTeam();
       unsubscribeProjects();
       unsubscribeProjects();
       unsubscribeBlog();
@@ -279,6 +337,19 @@ export const Admin: React.FC = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setLoginError(null);
+    setIsLoggingIn(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      setLoginError(error.message || "Google Authentication failed. Please try again.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -288,16 +359,32 @@ export const Admin: React.FC = () => {
   };
 
   const seedInitialData = async () => {
-    if (properties.length > 0) {
-      alert("Portfolio already initialized.");
-      return;
+    try {
+      const isSeededCompleteRef = ref(db, 'settings/isSeededComplete');
+      
+      // Seed all 5 core collections with their premium design values
+      for (const prop of INITIAL_PROPERTIES) {
+        await set(ref(db, `properties/${prop.id}`), prop);
+      }
+      for (const svc of INITIAL_SERVICES) {
+        await set(ref(db, `services/${svc.id}`), svc);
+      }
+      for (const item of INITIAL_GALLERY) {
+        await set(ref(db, `designGallery/${item.id}`), item);
+      }
+      for (const member of INITIAL_TEAM) {
+        await set(ref(db, `team/${member.id}`), member);
+      }
+      for (const proj of INITIAL_UPCOMING_PROJECTS) {
+        await set(ref(db, `upcomingProjects/${proj.id}`), proj);
+      }
+
+      await set(isSeededCompleteRef, true);
+      await set(ref(db, 'settings/isSeeded'), true);
+      showToast("Premium real estate ecosystem successfully seeded to Firebase!", "success");
+    } catch (err: any) {
+      showToast(`Error seeding ecosystem: ${err.message}`, "error");
     }
-    const propertiesRef = ref(db, 'properties');
-    for (const prop of INITIAL_PROPERTIES) {
-      const newPropRef = push(propertiesRef);
-      await set(newPropRef, prop);
-    }
-    alert("Portfolio initialized with NewOak Collection.");
   };
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
@@ -472,6 +559,21 @@ export const Admin: React.FC = () => {
   const resetVideo = async () => {
     if (window.confirm("Reset Corporate Video to default?")) {
       await remove(ref(db, 'settings/corporateVideo'));
+    }
+  };
+
+  const handleToggleTeamVisibility = async () => {
+    const newVal = !showTeam;
+    try {
+      await set(ref(db, 'settings/showTeamSection'), newVal);
+      showToast(
+        newVal
+          ? '✓ Visionary Leadership section is now VISIBLE on the homepage.'
+          : '✓ Visionary Leadership section is now HIDDEN from the homepage.',
+        'success'
+      );
+    } catch (err: any) {
+      showToast(`Failed to update visibility: ${err.message}`, 'error');
     }
   };
 
@@ -714,10 +816,24 @@ export const Admin: React.FC = () => {
   };
 
   const deleteGalleryItem = async (id: string) => {
-    if (window.confirm('Are you sure you want to remove this image from the gallery?')) {
-      const itemRef = ref(db, `designGallery/${id}`);
-      await remove(itemRef);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Showcase Asset',
+      message: 'Are you sure you want to permanently delete this asset from the design gallery? This action is immediate and cannot be undone.',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          const itemRef = ref(db, `designGallery/${id}`);
+          await remove(itemRef);
+          showToast('Image removed from showcase successfully.', 'success');
+        } catch (error: any) {
+          showToast(`Delete failed: ${error.message}`, 'error');
+        }
+      },
+      onCancel: () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const handleGallerySubmit = async (e: React.FormEvent) => {
@@ -727,23 +843,41 @@ export const Admin: React.FC = () => {
     const subtitle = (form.elements.namedItem('subtitle') as HTMLInputElement).value;
     const isMain = (form.elements.namedItem('isMain') as HTMLInputElement).checked;
 
-    const itemData: Partial<GalleryItem> = {
+    let targetId = editingGalleryItem?.id;
+    if (!targetId) {
+      const itemsRef = ref(db, 'designGallery');
+      const newItemRef = push(itemsRef);
+      targetId = newItemRef.key as string;
+    }
+
+    const itemData = {
       title,
       subtitle,
       image: galleryImage || 'https://images.unsplash.com/photo-1600607686527-6fb886090705?auto=format&fit=crop&q=80&w=800',
       isMain,
+      order: editingGalleryItem?.order !== undefined ? editingGalleryItem.order : galleryItems.length,
       createdAt: editingGalleryItem ? editingGalleryItem.createdAt : new Date().toISOString()
     };
 
-    if (editingGalleryItem) {
-      const itemRef = ref(db, `designGallery/${editingGalleryItem.id}`);
-      await update(itemRef, itemData);
-    } else {
-      const itemsRef = ref(db, 'designGallery');
-      const newItemRef = push(itemsRef);
-      await set(newItemRef, itemData);
+    const updates: Record<string, any> = {};
+    updates[`designGallery/${targetId}`] = itemData;
+
+    // Transactional enforcement: If this item is Main, set isMain of all other items to false
+    if (isMain) {
+      galleryItems.forEach(item => {
+        if (item.id !== targetId && item.isMain) {
+          updates[`designGallery/${item.id}/isMain`] = false;
+        }
+      });
     }
-    setIsGalleryModalOpen(false);
+
+    try {
+      await update(ref(db), updates);
+      showToast(editingGalleryItem ? 'Gallery item updated successfully.' : 'New gallery item created.', 'success');
+      setIsGalleryModalOpen(false);
+    } catch (error: any) {
+      showToast(`Database write failed: ${error.message}`, 'error');
+    }
   };
 
   const handleGalleryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -752,9 +886,112 @@ export const Admin: React.FC = () => {
       try {
         const compressed = await compressImage(file);
         setGalleryImage(compressed);
+        showToast('Image uploaded and optimized successfully.', 'success');
       } catch (error) {
-        console.error('Error compressing gallery image:', error);
+        showToast('Failed to optimize image. Check format and size.', 'error');
       }
+    }
+  };
+
+  // Instant Main Feature Toggle
+  const toggleGalleryMainFeature = async (id: string, currentIsMain: boolean) => {
+    const nextIsMain = !currentIsMain;
+    const updates: Record<string, any> = {};
+    updates[`designGallery/${id}/isMain`] = nextIsMain;
+
+    if (nextIsMain) {
+      galleryItems.forEach(item => {
+        if (item.id !== id && item.isMain) {
+          updates[`designGallery/${item.id}/isMain`] = false;
+        }
+      });
+    }
+
+    try {
+      await update(ref(db), updates);
+      showToast(nextIsMain ? 'Set as Main Feature asset.' : 'Main Feature disabled.', 'success');
+    } catch (error: any) {
+      showToast(`Toggle failed: ${error.message}`, 'error');
+    }
+  };
+
+  // Bulk Upload Handler
+  const handleBulkUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsBulkUploading(true);
+    let successCount = 0;
+
+    try {
+      const updates: Record<string, any> = {};
+      const itemsRef = ref(db, 'designGallery');
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith('image/')) {
+          showToast(`Skipped ${file.name}: Not an image`, 'info');
+          continue;
+        }
+
+        setBulkUploadProgress(`Optimizing ${file.name} (${i + 1}/${files.length})...`);
+        const compressed = await compressImage(file);
+
+        const newRef = push(itemsRef);
+        const newKey = newRef.key as string;
+
+        updates[`designGallery/${newKey}`] = {
+          title: file.name.split('.')[0].replace(/[-_]/g, ' '),
+          subtitle: 'Architectural Showcase',
+          image: compressed,
+          isMain: false,
+          order: galleryItems.length + successCount,
+          createdAt: new Date().toISOString()
+        };
+        successCount++;
+      }
+
+      if (successCount > 0) {
+        setBulkUploadProgress('Syncing to Cloud Database...');
+        await update(ref(db), updates);
+        showToast(`Bulk upload complete! ${successCount} assets added.`, 'success');
+      } else {
+        showToast('No valid image files were uploaded.', 'error');
+      }
+    } catch (error: any) {
+      showToast(`Bulk upload failed: ${error.message}`, 'error');
+    } finally {
+      setIsBulkUploading(false);
+      setBulkUploadProgress('');
+    }
+  };
+
+  // Visual Drag and Drop Sorting Handlers
+  const handleGalleryDragStart = (index: number) => {
+    setDraggedGalleryItemIndex(index);
+  };
+
+  const handleGalleryDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedGalleryItemIndex === null || draggedGalleryItemIndex === index) return;
+    const items = [...galleryItems];
+    const dragged = items[draggedGalleryItemIndex];
+    items.splice(draggedGalleryItemIndex, 1);
+    items.splice(index, 0, dragged);
+    setGalleryItems(items);
+    setDraggedGalleryItemIndex(index);
+  };
+
+  const handleGalleryDragEnd = async () => {
+    setDraggedGalleryItemIndex(null);
+    const updates: Record<string, any> = {};
+    galleryItems.forEach((item, index) => {
+      updates[`designGallery/${item.id}/order`] = index;
+    });
+
+    try {
+      await update(ref(db), updates);
+      showToast('Visual layout sequence synchronized.', 'success');
+    } catch (error: any) {
+      showToast(`Failed to sync reorder sequence: ${error.message}`, 'error');
     }
   };
 
@@ -952,6 +1189,40 @@ export const Admin: React.FC = () => {
               className="w-full bg-oak text-white py-5 rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-gold transition-all shadow-xl shadow-oak/20 active:scale-95 flex items-center justify-center"
             >
               {isLoggingIn ? <Loader2 className="animate-spin mr-2" size={16} /> : "Initialize Session"}
+            </button>
+
+            {/* Premium Google Sign-In Integration */}
+            <div className="flex items-center my-4">
+              <div className="flex-grow border-t border-gray-100"></div>
+              <span className="mx-4 text-gray-400 text-[8px] uppercase tracking-widest font-bold">Or</span>
+              <div className="flex-grow border-t border-gray-100"></div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isLoggingIn}
+              className="w-full bg-white border border-gray-200 text-oak py-5 rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] hover:border-gold hover:text-gold transition-all shadow-sm active:scale-95 flex items-center justify-center space-x-2"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
+              </svg>
+              <span>Sign In with Google</span>
             </button>
 
             <div className="pt-6 border-t border-gray-50 text-center">
@@ -1722,51 +1993,238 @@ export const Admin: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            </div>          )}
 
           {/* Gallery Tab Content */}
           {activeTab === 'gallery' && (
-            <div className="space-y-8">
-              <div className="flex justify-between items-center">
+            <div className="space-y-8 animate-in fade-in duration-500">
+              {/* Header with Stats & Actions */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/40 p-6 rounded-2xl border border-gray-100 backdrop-blur-md">
                 <div>
-                  <h3 className="font-serif text-xl text-oak">Design Gallery</h3>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Manage architectural showcase images</p>
+                  <h3 className="font-serif text-2xl text-oak flex items-center space-x-2">
+                    <span>Design Gallery Hub</span>
+                    <span className="bg-gold/15 text-gold text-[10px] px-2.5 py-1 rounded-full uppercase tracking-wider font-extrabold font-sans">
+                      Global Standard
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">
+                    Manage the main architectural showcase assets for the Home page
+                  </p>
                 </div>
-                <button onClick={() => openGalleryModal()} className="bg-oak text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-gold transition-all shadow-lg shadow-oak/20 flex items-center space-x-2">
-                  <Plus size={16} />
-                  <span>Add Image</span>
-                </button>
+                
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="bg-oak/5 border border-oak/5 rounded-xl px-4 py-2 flex items-center space-x-3 text-xs">
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Showcase Size</p>
+                      <p className="font-serif font-bold text-oak">{galleryItems.length} Assets</p>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => openGalleryModal()} 
+                    className="bg-oak text-white px-5 py-3 rounded-xl font-bold uppercase tracking-widest text-[9px] hover:bg-gold hover:text-white transition-all shadow-lg hover:shadow-gold/25 flex items-center space-x-2 group duration-300"
+                  >
+                    <Plus size={14} className="group-hover:rotate-90 transition-transform duration-300" />
+                    <span>Single Upload</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {galleryItems.map((item) => (
-                  <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 group hover:border-gold/30 transition-all relative">
-                    <div className={`rounded-xl overflow-hidden mb-4 relative ${item.isMain ? 'aspect-video' : 'aspect-square'}`}>
-                      <img src={item.image} alt={item.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
-                      <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-[-10px] group-hover:translate-y-0">
-                        <button onClick={() => openGalleryModal(item)} className="p-2 bg-white/90 backdrop-blur-sm rounded-lg hover:text-gold shadow-sm transition-colors">
-                          <Edit3 size={14} />
-                        </button>
-                        <button onClick={() => deleteGalleryItem(item.id)} className="p-2 bg-white/90 backdrop-blur-sm rounded-lg hover:text-red-500 shadow-sm transition-colors">
-                          <Trash2 size={14} />
-                        </button>
+              {/* Advanced Interactive Workspace Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Bulk Upload Dropzone & Main Asset Preview */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* Glassmorphic Dropzone */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDraggingOverDropzone(true); }}
+                    onDragLeave={() => setIsDraggingOverDropzone(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingOverDropzone(false);
+                      handleBulkUpload(e.dataTransfer.files);
+                    }}
+                    onClick={() => {
+                      const fileInput = document.createElement('input');
+                      fileInput.type = 'file';
+                      fileInput.multiple = true;
+                      fileInput.accept = 'image/*';
+                      fileInput.onchange = (e) => {
+                        handleBulkUpload((e.target as HTMLInputElement).files);
+                      };
+                      fileInput.click();
+                    }}
+                    className={`relative rounded-3xl p-8 border-2 border-dashed text-center cursor-pointer transition-all duration-500 flex flex-col items-center justify-center min-h-[220px] ${
+                      isDraggingOverDropzone 
+                        ? 'border-gold bg-gold/5 scale-[1.01] shadow-xl shadow-gold/5' 
+                        : 'border-gray-200 bg-white hover:border-gold hover:bg-gold/5'
+                    }`}
+                  >
+                    {isBulkUploading ? (
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="relative">
+                          <Loader2 size={36} className="text-gold animate-spin" />
+                          <div className="absolute inset-0 m-auto w-1.5 h-1.5 bg-oak rounded-full"></div>
+                        </div>
+                        <p className="text-[10px] text-oak uppercase tracking-widest font-bold font-sans animate-pulse">
+                          {bulkUploadProgress}
+                        </p>
                       </div>
-                      {item.isMain && <span className="absolute bottom-2 left-2 bg-gold text-white text-[9px] font-bold uppercase px-2 py-1 rounded-md">Main Feature</span>}
-                    </div>
-                    <div>
-                      <h3 className="font-serif text-sm text-oak mb-1">{item.title}</h3>
-                      <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold truncate">{item.subtitle}</p>
-                    </div>
+                    ) : (
+                      <div className="flex flex-col items-center group">
+                        <div className="mb-4 bg-oak/5 p-4 rounded-full group-hover:bg-gold group-hover:text-white transition-all duration-500">
+                          <Upload size={24} className="text-oak group-hover:text-white transition-colors duration-500" />
+                        </div>
+                        <h4 className="font-serif text-oak text-base mb-1">Bulk Asset Showcase</h4>
+                        <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mb-4">
+                          Drag & drop multiple files
+                        </p>
+                        <span className="text-[8px] bg-oak/5 border border-oak/10 text-oak font-bold uppercase tracking-wider px-3 py-1.5 rounded-full select-none">
+                          Browse Files
+                        </span>
+                      </div>
+                    )}
                   </div>
-                ))}
-                {galleryItems.length === 0 && (
-                  <div className="col-span-full py-20 text-center border-2 border-dashed border-gray-200 rounded-3xl">
-                    <ImageIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-gray-900 font-medium mb-1">Gallery Empty</h3>
-                    <p className="text-gray-500 text-sm mb-6">Upload high-quality images to the design showcase.</p>
+
+                  {/* Main Feature Highlight panel */}
+                  <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Active Main Feature</p>
+                      <span className="w-2 h-2 rounded-full bg-gold animate-ping"></span>
+                    </div>
+                    {galleryItems.some(item => item.isMain) ? (
+                      (() => {
+                        const main = galleryItems.find(item => item.isMain)!;
+                        return (
+                          <div className="space-y-4 group">
+                            <div className="aspect-video rounded-2xl overflow-hidden border border-gold/30 shadow-md relative">
+                              <img src={main.image} alt={main.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1.5s]" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-oak/80 to-transparent opacity-70"></div>
+                              <div className="absolute bottom-4 left-4 right-4 text-white">
+                                <h4 className="font-serif text-base mb-0.5">{main.title}</h4>
+                                <p className="text-[9px] uppercase tracking-widest text-gold font-bold">{main.subtitle}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div className="py-8 text-center bg-red-50/50 rounded-2xl border border-dashed border-red-100">
+                        <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                        <h5 className="text-red-900 font-bold text-xs">No Main Feature Configured</h5>
+                        <p className="text-gray-400 text-[10px] mt-1 px-4 leading-normal">
+                          The Home page hero grid layout requires one main image. Check a card switch as "Main Feature" below.
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+
+                {/* Sortable Portfolio Grid List */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                    <span className="text-[10px] font-extrabold text-oak uppercase tracking-widest flex items-center space-x-1.5">
+                      <GripVertical size={12} className="text-gray-300" />
+                      <span>Reorder Workspace (Drag & Drop)</span>
+                    </span>
+                    <span className="text-[9px] text-gray-400 tracking-wider">
+                      Changes sync in real-time
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[640px] overflow-y-auto pr-2 scrollbar-thin">
+                    {galleryItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={() => handleGalleryDragStart(index)}
+                        onDragOver={(e) => handleGalleryDragOver(e, index)}
+                        onDragEnd={handleGalleryDragEnd}
+                        className={`bg-white rounded-2xl p-4 border transition-all duration-300 relative group flex flex-col justify-between ${
+                          draggedGalleryItemIndex === index 
+                            ? 'border-gold bg-gold/5 opacity-50 scale-[0.98]' 
+                            : 'border-gray-100 hover:border-gold/30 shadow-sm hover:shadow-md'
+                        }`}
+                      >
+                        {/* Image Frame */}
+                        <div className="aspect-[4/3] rounded-xl overflow-hidden relative mb-4">
+                          <img 
+                            src={item.image} 
+                            alt={item.title} 
+                            className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" 
+                          />
+                          <div className="absolute inset-0 bg-transparent group-hover:bg-oak/10 transition-colors duration-500"></div>
+                          
+                          {/* Drag Grip Indicator */}
+                          <div className="absolute top-2 left-2 p-1.5 bg-white/95 backdrop-blur-sm rounded-lg text-gray-400 cursor-grab active:cursor-grabbing shadow-sm opacity-60 group-hover:opacity-100 transition-opacity">
+                            <GripVertical size={12} />
+                          </div>
+
+                          {/* Quick Controls overlay */}
+                          <div className="absolute top-2 right-2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-[-5px] group-hover:translate-y-0">
+                            <button 
+                              onClick={() => openGalleryModal(item)} 
+                              className="p-2 bg-white/95 backdrop-blur-sm rounded-lg hover:text-gold shadow-sm transition-colors text-oak"
+                              title="Edit Details"
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                            <button 
+                              onClick={() => deleteGalleryItem(item.id)} 
+                              className="p-2 bg-white/95 backdrop-blur-sm rounded-lg hover:text-red-500 shadow-sm transition-colors text-oak"
+                              title="Delete Asset"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+
+                          {/* Main Badge */}
+                          {item.isMain && (
+                            <span className="absolute bottom-2 left-2 bg-gold text-white text-[8px] font-extrabold uppercase px-2.5 py-1 rounded-md tracking-wider shadow-sm">
+                              Main Feature
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Text Content & Switch Toggle */}
+                        <div className="flex justify-between items-end gap-3 mt-1">
+                          <div className="min-w-0">
+                            <h4 className="font-serif text-sm text-oak font-bold truncate">{item.title}</h4>
+                            <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold truncate mt-0.5">
+                              {item.subtitle}
+                            </p>
+                          </div>
+
+                          {/* Beautiful Interactive Switch for isMain */}
+                          <div className="flex flex-col items-end flex-shrink-0">
+                            <span className="text-[7px] font-extrabold uppercase tracking-wider text-gray-400 mb-1 select-none">
+                              Main Grid
+                            </span>
+                            <button
+                              onClick={() => toggleGalleryMainFeature(item.id, !!item.isMain)}
+                              className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 focus:outline-none flex items-center ${
+                                item.isMain ? 'bg-gold' : 'bg-gray-200'
+                              }`}
+                            >
+                              <div
+                                className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-300 ${
+                                  item.isMain ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {galleryItems.length === 0 && (
+                      <div className="col-span-full py-20 text-center border-2 border-dashed border-gray-100 rounded-3xl">
+                        <ImageIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-gray-900 font-medium mb-1">Gallery workspace is empty</h3>
+                        <p className="text-gray-400 text-xs mb-6">Upload premium architecture assets to present Ghana's high-end residential design.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1821,6 +2279,38 @@ export const Admin: React.FC = () => {
             <div className="max-w-3xl bg-white p-10 rounded-2xl shadow-sm border border-gray-100 animate-in fade-in duration-500">
               <h3 className="font-serif text-2xl text-oak mb-8">System Configuration</h3>
               <div className="space-y-8">
+
+                {/* Team Section Visibility Toggle */}
+                <div className="flex items-center justify-between p-6 bg-gradient-to-r from-oak/5 to-gold/5 rounded-xl border border-oak/10 shadow-sm">
+                  <div className="flex items-center space-x-4">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                      showTeam ? 'bg-gold text-oak shadow-md shadow-gold/20' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                      <Users size={20} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-oak">Visionary Leadership Section</p>
+                      <p className="text-[9px] text-gray-400 uppercase tracking-widest mt-0.5">
+                        {showTeam ? 'Currently visible on the homepage' : 'Hidden from the homepage'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    id="toggle-team-visibility"
+                    onClick={handleToggleTeamVisibility}
+                    className={`relative inline-flex items-center h-7 w-14 rounded-full transition-all duration-300 focus:outline-none shadow-inner ${
+                      showTeam
+                        ? 'bg-gold shadow-gold/20'
+                        : 'bg-gray-200'
+                    }`}
+                    aria-label={showTeam ? 'Hide team section' : 'Show team section'}
+                  >
+                    <span className={`inline-block w-5 h-5 rounded-full bg-white shadow-md transform transition-all duration-300 ${
+                      showTeam ? 'translate-x-8' : 'translate-x-1'
+                    }`} />
+                    <span className="sr-only">{showTeam ? 'Visible' : 'Hidden'}</span>
+                  </button>
+                </div>
                 {/* Hero Image Carousel Section */}
                 <div className="flex flex-col space-y-4 p-6 bg-oak/5 rounded-xl border border-oak/5">
                   <div className="flex items-center justify-between">
@@ -2030,7 +2520,65 @@ export const Admin: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Custom Toast Notifications Stack */}
+        <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto flex items-center p-4 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-500 transform translate-x-0 animate-in slide-in-from-right-10 ${
+                toast.type === 'success'
+                  ? 'bg-[#0F382E]/95 text-white border-gold/30'
+                  : toast.type === 'error'
+                  ? 'bg-red-950/95 text-white border-red-500/30'
+                  : 'bg-blue-950/95 text-white border-blue-500/30'
+              }`}
+            >
+              <div className="mr-3">
+                {toast.type === 'success' && <Check size={18} className="text-gold" />}
+                {toast.type === 'error' && <AlertTriangle size={18} className="text-red-400" />}
+                {toast.type === 'info' && <Clock size={18} className="text-blue-400" />}
+              </div>
+              <p className="text-[11px] uppercase tracking-wider font-bold">{toast.message}</p>
+              <button
+                onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                className="ml-auto text-white/50 hover:text-white transition-colors pl-4 focus:outline-none"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Custom Delete Confirmation Modal */}
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-gray-100 p-8 text-center animate-in zoom-in-95 duration-300">
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="font-serif text-2xl text-oak mb-3">{confirmModal.title}</h3>
+              <p className="text-gray-500 text-xs leading-relaxed mb-8 px-2">
+                {confirmModal.message}
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={confirmModal.onCancel}
+                  className="flex-1 px-6 py-3 border border-gray-200 rounded-xl text-xs font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  className="flex-1 bg-red-500 text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20"
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
-    </div >
+    </div>
   );
 };

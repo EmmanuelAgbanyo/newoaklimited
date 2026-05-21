@@ -74,8 +74,10 @@ const Navbar: React.FC = () => {
 const Footer: React.FC = () => {
   const navigate = useNavigate();
 
-  const handleCopyrightDoubleClick = () => {
-    navigate('/admin');
+  const handleCopyrightClick = (e: React.MouseEvent<HTMLSpanElement>) => {
+    if (e.detail === 3) {
+      navigate('/admin');
+    }
   };
 
   return (
@@ -165,7 +167,7 @@ const Footer: React.FC = () => {
       </div>
       <div className="text-center text-gray-500 text-xs tracking-widest uppercase">
         <span
-          onDoubleClick={handleCopyrightDoubleClick}
+          onClick={handleCopyrightClick}
           className="cursor-default select-none"
           title=""
         >

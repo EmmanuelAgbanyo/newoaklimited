@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Shield, TrendingUp, Landmark, Key, Play, Pause, MapPin, Loader2, Map, Sparkles, Building2, Star, Quote, Briefcase, Globe, Zap, Award } from 'lucide-react';
 import { ImageComponent } from '../components/ImageComponent';
 import { useData } from '../contexts/DataContext';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ScrollReveal } from '../components/ui/ScrollReveal';
-import { INITIAL_PROPERTIES } from '../constants';
+import { INITIAL_PROPERTIES, INITIAL_SERVICES, INITIAL_GALLERY } from '../constants';
 import { SEO, pageSEO } from '../components/SEO';
 import { ShineBorder } from '../components/ui/shine-border';
 
@@ -15,12 +15,23 @@ const IconMap: { [key: string]: React.ElementType } = {
 
 const Hero: React.FC = () => {
   const { heroImages } = useData();
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAssetLoaded, setIsAssetLoaded] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
 
-  const defaultImage = "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?auto=format&fit=crop&q=80&w=2000";
-  const imagesToUse = heroImages.length > 0 ? heroImages : [defaultImage];
+  const [searchLocation, setSearchLocation] = useState('All');
+  const [searchCategory, setSearchCategory] = useState('All');
+  const [searchBudget, setSearchBudget] = useState('All');
+
+  const defaultImages = [
+    "/hero_new_oak_heights.png",
+    "/hero_new_oak_facade.png",
+    "/hero_new_oak_dusk.jpg",
+    "/hero_new_oak_villa.jpg",
+    "/hero_new_oak_tower.jpg"
+  ];
+  const imagesToUse = heroImages.length > 0 ? heroImages : defaultImages;
 
   useEffect(() => {
     if (imagesToUse.length <= 1) return;
@@ -44,6 +55,15 @@ const Hero: React.FC = () => {
       setIsAssetLoaded(false);
     }
   }, [currentIndex, loadedImages]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (searchLocation !== 'All') params.append('location', searchLocation);
+    if (searchCategory !== 'All') params.append('category', searchCategory);
+    if (searchBudget !== 'All') params.append('budget', searchBudget);
+    navigate(`/gallery?${params.toString()}`);
+  };
 
   return (
     <div className="relative h-screen w-full overflow-hidden flex items-center justify-center bg-oak">
@@ -81,7 +101,7 @@ const Hero: React.FC = () => {
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-oak to-transparent"></div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-white">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 w-full text-white mt-12">
         <div className="max-w-4xl">
           <div className="flex items-center space-x-4 mb-8 animate-fade-up opacity-0" style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}>
             <div className="w-12 h-[2px] bg-gold"></div>
@@ -108,6 +128,61 @@ const Hero: React.FC = () => {
               <span className="relative z-10">Our Legacy</span>
             </Link>
           </div>
+        </div>
+
+        {/* Global Standard Search Card */}
+        <div className="mt-16 max-w-4xl animate-fade-up opacity-0" style={{ animationDelay: '1s', animationFillMode: 'forwards' }}>
+          <form onSubmit={handleSearchSubmit} className="backdrop-blur-xl bg-oak/80 border border-white/10 p-6 md:p-8 shadow-2xl rounded-sm flex flex-col md:flex-row items-center gap-6 text-white w-full">
+            <div className="flex-1 w-full space-y-2 text-left">
+              <label className="text-[9px] uppercase font-bold tracking-widest text-gold block">Location</label>
+              <select 
+                value={searchLocation} 
+                onChange={(e) => setSearchLocation(e.target.value)} 
+                className="w-full bg-white/5 border border-white/10 px-4 py-3.5 rounded-sm text-xs focus:outline-none focus:border-gold transition-colors text-white [&>option]:text-black"
+              >
+                <option value="All">All Districts</option>
+                <option value="Haatso">Haatso</option>
+                <option value="Ashongman">Ashongman</option>
+                <option value="Musuku">Musuku Junction</option>
+              </select>
+            </div>
+            
+            <div className="flex-1 w-full space-y-2 text-left">
+              <label className="text-[9px] uppercase font-bold tracking-widest text-gold block">Property Type</label>
+              <select 
+                value={searchCategory} 
+                onChange={(e) => setSearchCategory(e.target.value)} 
+                className="w-full bg-white/5 border border-white/10 px-4 py-3.5 rounded-sm text-xs focus:outline-none focus:border-gold transition-colors text-white [&>option]:text-black"
+              >
+                <option value="All">All Categories</option>
+                <option value="Penthouse">Penthouse</option>
+                <option value="Residential">Residential</option>
+                <option value="Villa">Villa</option>
+              </select>
+            </div>
+
+            <div className="flex-1 w-full space-y-2 text-left">
+              <label className="text-[9px] uppercase font-bold tracking-widest text-gold block">Max Budget</label>
+              <select 
+                value={searchBudget} 
+                onChange={(e) => setSearchBudget(e.target.value)} 
+                className="w-full bg-white/5 border border-white/10 px-4 py-3.5 rounded-sm text-xs focus:outline-none focus:border-gold transition-colors text-white [&>option]:text-black"
+              >
+                <option value="All">No Limit</option>
+                <option value="300000">Under $300k</option>
+                <option value="600000">Under $600k</option>
+                <option value="900000">Under $900k</option>
+              </select>
+            </div>
+
+            <button 
+              type="submit" 
+              className="w-full md:w-auto bg-gold text-oak px-8 py-4 rounded-sm font-bold uppercase tracking-widest text-[10px] hover:bg-white hover:text-oak transition-all flex items-center justify-center space-x-2 shrink-0 md:mt-5 cursor-pointer active:scale-95 shadow-lg shadow-gold/10"
+            >
+              <span>Find Enclave</span>
+              <ArrowRight size={14} />
+            </button>
+          </form>
         </div>
       </div>
     </div>
@@ -257,7 +332,7 @@ const VideoSection: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
 
-  const assetSrc = corporateVideo || "https://assets.mixkit.co/videos/preview/mixkit-modern-luxury-house-exterior-at-night-40343-large.mp4";
+  const assetSrc = corporateVideo || "/new_oak_narrative.mp4";
   const isVideo = assetSrc?.startsWith('data:video') || assetSrc?.endsWith('.mp4');
 
   const togglePlay = () => {
@@ -266,6 +341,27 @@ const VideoSection: React.FC = () => {
       else { videoRef.current.play().then(() => setIsPlaying(true)); }
     }
   };
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && isVideo) {
+      video.defaultMuted = true;
+      video.muted = true;
+      
+      // Explicitly trigger programmatic play to handle browser autoplay policies
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((err) => {
+            console.warn("Muted video autoplay requires user interaction: ", err);
+            setIsPlaying(false);
+          });
+      }
+    }
+  }, [assetSrc, isVideo]);
 
   return (
     <section className="py-32 bg-oak text-white relative">
@@ -386,39 +482,37 @@ const TeamSection = () => {
 };
 
 export const Home: React.FC = () => {
-  const { galleryItems, services, isLoading } = useData();
+  const { galleryItems, services, isLoading, showTeamSection } = useData();
+  const [galleryTab, setGalleryTab] = useState<'all' | 'rooms' | 'estate'>('all');
 
-  const defaultServices = [
-    {
-      id: '1', title: 'Estate Development', description: 'Sovereign-grade suburban planning with meticulous attention to Ghanaian heritage and global architectural standards.',
-      features: ['Master-planned communities', 'Premium location selection'], image: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&q=80&w=800", icon: 'Shield'
-    },
-    {
-      id: '2', title: 'Accessible Investment', description: 'Strategic ROI optimization with humanity. We offer tailored payment plans that empower the middle class to build generational wealth effortlessly.',
-      features: ['Flexible payment structures', 'High-yield appreciation'], image: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&q=80&w=800", icon: 'TrendingUp'
-    },
-    {
-      id: '3', title: 'Architecture', description: 'Merging local Accra context with global luxury standards. Fusion of terracotta warmth and geometric precision.',
-      features: ['Contemporary Ghanaian design', 'Sustainable innovation'], image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800", icon: 'Landmark'
-    },
-    {
-      id: '4', title: 'Concierge', description: 'End-to-end property maintenance and management with 24/7 gated security protocols for your peace of mind.',
-      features: ['24/7 security protocols', 'Property management'], image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=800", icon: 'Key'
+  const displayServices = services.length > 0 ? services : INITIAL_SERVICES;
+
+  // Sort the gallery items dynamically by visual order index, and fall back to createdAt timestamp sequence
+  const sortedGalleryItems = [...galleryItems].sort((a, b) => {
+    const orderA = a.order !== undefined ? a.order : 999999;
+    const orderB = b.order !== undefined ? b.order : 999999;
+    if (orderA !== orderB) {
+      return orderA - orderB;
     }
-  ];
+    return new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime();
+  });
+  const galleryContent = sortedGalleryItems.length > 0 ? sortedGalleryItems : INITIAL_GALLERY;
 
-  const displayServices = services.length > 0 ? services : defaultServices;
+  const filteredGallery = galleryContent.filter(item => {
+    if (galleryTab === 'all') return true;
+    const isRoom = ['1', '4', '6', '7', '8', '9'].includes(item.id) || 
+                   item.title.toLowerCase().includes('dressing') || 
+                   item.title.toLowerCase().includes('study') || 
+                   item.title.toLowerCase().includes('spa') || 
+                   item.title.toLowerCase().includes('wine') || 
+                   item.title.toLowerCase().includes('culinary') ||
+                   item.title.toLowerCase().includes('bath');
+    if (galleryTab === 'rooms') return isRoom;
+    return !isRoom;
+  });
 
-  const defaultImages = [
-    { title: "Bespoke Culinary Spaces", subtitle: "Italian Marble & Integrated Appliances", image: "https://images.unsplash.com/photo-1600607686527-6fb886090705?auto=format&fit=crop&q=80&w=800", isMain: true },
-    { title: "Minimalist Living", subtitle: "Open Plan Design", image: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&q=80&w=800" },
-    { title: "Pool Deck", subtitle: "Resort Style Amenities", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800" },
-    { title: "Master Bath", subtitle: "Spa-like Retreat", image: "https://images.unsplash.com/photo-1600566753086-00f18cf6b3ea?auto=format&fit=crop&q=80&w=800" },
-    { title: "Facade Detail", subtitle: "Modern Architecture", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=800" },
-  ];
-  const galleryContent = galleryItems.length > 0 ? galleryItems : defaultImages;
-  const mainItem = galleryContent.find(i => i.isMain) || galleryContent[0];
-  const otherItems = galleryContent.filter(i => i !== mainItem).slice(0, 4);
+  const mainItem = filteredGallery.find(i => i.isMain) || filteredGallery[0];
+  const otherItems = filteredGallery.filter(i => i !== mainItem).slice(0, 4);
 
   // Testimonials & Features static for now
   const testimonials = [
@@ -438,6 +532,8 @@ export const Home: React.FC = () => {
       <style>{`
         @keyframes fade-up { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-up { animation: fade-up 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        @keyframes fade-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        .animate-fade-in { animation: fade-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #0F382E; }
         ::-webkit-scrollbar-thumb { background: #F0C05A; border-radius: 3px; }
@@ -502,7 +598,7 @@ export const Home: React.FC = () => {
 
           {/* Design Gallery */}
           <section className="py-32 bg-white relative">
-            <div className="max-w-7xl mx-auto mb-16 flex justify-between items-end">
+            <div className="max-w-7xl mx-auto mb-16 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
               <div>
                 <ScrollReveal variant="fade-up" delay={0}>
                   <span className="text-gold uppercase tracking-[0.3em] text-[10px] font-bold block mb-4">The Aesthetic</span>
@@ -511,7 +607,27 @@ export const Home: React.FC = () => {
                   <h2 className="font-serif text-4xl md:text-5xl text-oak">Curated <span className="italic text-gold">Amenities</span></h2>
                 </ScrollReveal>
               </div>
-              <div className="hidden md:block">
+
+              {/* Premium Luxury Tab Switcher */}
+              <ScrollReveal variant="fade-up" delay={150}>
+                <div className="flex bg-oak/5 p-1 rounded-sm border border-oak/10 backdrop-blur-md">
+                  {(['all', 'rooms', 'estate'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setGalleryTab(tab)}
+                      className={`px-4 py-2 rounded-sm font-bold uppercase tracking-widest text-[9px] transition-all duration-300 cursor-pointer ${
+                        galleryTab === tab 
+                          ? 'bg-gold text-oak shadow-md shadow-gold/20' 
+                          : 'text-oak/60 hover:text-oak hover:bg-oak/5'
+                      }`}
+                    >
+                      {tab === 'all' ? 'All Spaces' : tab === 'rooms' ? 'Professional Rooms' : 'Estate & Outdoor'}
+                    </button>
+                  ))}
+                </div>
+              </ScrollReveal>
+
+              <div className="hidden lg:block">
                 <ScrollReveal variant="slide-in-right" delay={200}>
                   <Link to="/gallery" className="flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-oak hover:text-gold transition-colors"><span>View Full Gallery</span><ArrowRight size={14} /></Link>
                 </ScrollReveal>
@@ -523,29 +639,47 @@ export const Home: React.FC = () => {
                 {[1, 2, 3, 4].map(i => <Skeleton key={i} className="md:col-span-1 md:row-span-1 rounded-sm" />)}
               </div>
             ) : (
-              <div className="max-w-[1920px] mx-auto grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-4 px-4 h-[800px]">
-                <div className="md:col-span-2 md:row-span-2 relative group overflow-hidden rounded-sm cursor-pointer">
-                  <ImageComponent src={mainItem?.image} alt={mainItem?.title} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-transparent group-hover:bg-oak/20 transition-colors duration-500"></div>
-                  <div className="absolute bottom-8 left-8 p-6 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-sm translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                    <p className="font-serif text-2xl mb-1">{mainItem?.title}</p>
-                    <p className="text-[10px] uppercase tracking-widest font-bold">{mainItem?.subtitle}</p>
+              <div key={galleryTab} className="max-w-[1920px] mx-auto grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-4 px-4 h-[800px] animate-fade-in">
+                {mainItem ? (
+                  <div className="md:col-span-2 md:row-span-2 relative group overflow-hidden rounded-sm cursor-pointer">
+                    <ImageComponent src={mainItem.image} alt={mainItem.title} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-transparent group-hover:bg-oak/20 transition-colors duration-500"></div>
+                    <div className="absolute bottom-8 left-8 p-6 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-sm translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                      <p className="font-serif text-2xl mb-1">{mainItem.title}</p>
+                      <p className="text-[10px] uppercase tracking-widest font-bold">{mainItem.subtitle}</p>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="md:col-span-2 md:row-span-2 flex items-center justify-center border border-dashed border-oak/20 rounded-sm text-oak/40">
+                    No main amenity item available
+                  </div>
+                )}
                 {otherItems.map((item, index) => (
-                  <div key={index} className="md:col-span-1 md:row-span-1 relative group overflow-hidden rounded-sm cursor-pointer">
+                  <div key={item.id || index} className="md:col-span-1 md:row-span-1 relative group overflow-hidden rounded-sm cursor-pointer">
                     <ImageComponent src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-110" />
                     <div className="absolute inset-0 bg-oak/0 group-hover:bg-oak/10 transition-colors"></div>
                     <div className="absolute inset-0 flex flex-col justify-end p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                       <p className="text-white font-serif text-lg translate-y-4 group-hover:translate-y-0 transition-transform duration-500">{item.title}</p>
+                      <p className="text-gold text-[9px] uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">{item.subtitle}</p>
                     </div>
+                  </div>
+                ))}
+                {/* Pad grid if otherItems length is less than 4 to keep beautiful structure layout */}
+                {otherItems.length < 4 && Array.from({ length: 4 - otherItems.length }).map((_, i) => (
+                  <div key={`empty-${i}`} className="md:col-span-1 md:row-span-1 border border-dashed border-oak/10 rounded-sm flex flex-col items-center justify-center p-6 text-center text-oak/30 bg-oak/[0.01]">
+                    <span className="font-serif text-sm tracking-wide text-oak/40 italic">Signature Space</span>
+                    <span className="text-[8px] uppercase tracking-widest text-gold mt-1">To Be Unveiled</span>
                   </div>
                 ))}
               </div>
             )}
           </section>
 
-          <TeamSection />
+          {showTeamSection && (
+            <div className="animate-in fade-in duration-700">
+              <TeamSection />
+            </div>
+          )}
 
           {/* Testimonials */}
           <div className="relative py-32 overflow-hidden mt-32">

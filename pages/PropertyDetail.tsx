@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  MapPin, ChevronLeft, CheckCircle2, X, Loader2, Sparkles, FileText, Search, Check, ExternalLink, Map as MapIcon
+  MapPin, ChevronLeft, X, Loader2, Sparkles, Search, Check, ExternalLink,
+  Map as MapIcon, Sun, Droplets, Shield, Cpu, Clock, Send, Compass
 } from 'lucide-react';
 import { ImageComponent } from '../components/ImageComponent';
 import { INITIAL_PROPERTIES } from '../constants';
@@ -38,16 +38,24 @@ export const PropertyDetail: React.FC = () => {
         const found = { ...data, id };
         setProperty(found);
 
+        // Fetch neighborhood insights based on property location
         setIsLoadingIntel(true);
-        geminiService.getNeighborhoodInsights(found.location, found.coordinates?.lat, found.coordinates?.lng).then(data => {
-          setIntel(data);
-          setIsLoadingIntel(false);
-        });
+        geminiService.getNeighborhoodInsights(found.location, found.coordinates?.lat, found.coordinates?.lng)
+          .then(res => {
+            setIntel(res);
+            setIsLoadingIntel(false);
+          })
+          .catch(() => {
+            setIsLoadingIntel(false);
+          });
       } else {
-        // Fallback or handle not found
         const staticFound = INITIAL_PROPERTIES.find(p => p.id === id);
         if (staticFound) setProperty(staticFound);
       }
+    }, (error) => {
+      console.error("Error fetching property detail from Firebase Realtime Database:", error);
+      const staticFound = INITIAL_PROPERTIES.find(p => p.id === id);
+      if (staticFound) setProperty(staticFound);
     });
     return () => unsubscribe();
   }, [id]);
@@ -103,117 +111,335 @@ export const PropertyDetail: React.FC = () => {
     }
   };
 
-  if (!property) return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <Loader2 className="animate-spin text-gold" size={40} />
-    </div>
-  );
+  // Per-enclave image labels, matched to each property's unique curated amenity imagery
+  const ENCLAVE_IMAGE_LABELS: Record<string, string[]> = {
+    '1': [
+      "Signature Architectural Exterior — New Oak Heights",
+      "Rooftop Infinity Pool & City Skyline Panorama",
+      "Designer Marble Open-Plan Culinary Kitchen",
+      "Floor-to-Ceiling Glass Master Bedroom Suite",
+      "Backlit Bespoke Walk-In Wardrobe & Dressing Suite",
+    ],
+    '2': [
+      "Signature Architectural Exterior — The Sovereign Spire",
+      "Ultra-Luxury Private Indoor Wellness Spa & Steam Suite",
+      "Bespoke Backlit Walnut & Glass Wine Cellar Lounge",
+      "Panoramic Glass-Walled Executive Penthouse Living Room",
+      "Cinematic Private Home Theatre & Entertainment Suite",
+    ],
+    '3': [
+      "Signature Architectural Exterior — The Sanctuary Oasis",
+      "Tropical Private Infinity Pool & Lush Landscaped Deck",
+      "Double-Height Open-Plan Tropical Grand Living Room",
+      "Private Outdoor Cabana & Pergola Entertainment Terrace",
+      "Spa-Grade Master Ensuite With Freestanding Soaking Tub",
+    ],
+    '4': [
+      "Signature Architectural Exterior — The Geometric Pavilion",
+      "Sophisticated Minimalist Family Lounge in Warm Oak Tones",
+      "Chef's Island Kitchen With Premium Integrated Appliances",
+      "Private Garden Courtyard & Landscaped Outdoor Retreat",
+      "Custom Built-In Oak Bookshelf & Executive Study Nook",
+    ],
+    '5': [
+      "Signature Architectural Exterior — The Sunset Pavilion",
+      "Sunset-Lit Terrace & Outdoor Lounge With Water Feature",
+      "Deep-Overhanging Pergola Entertainment Lounge at Dusk",
+      "Premium Master Suite With Terracotta & Sunset Palette",
+      "Custom Fireplace Lounge With Warm Earthy Interior Tones",
+    ],
+  };
+
+  const getImageLabel = (index: number) => {
+    const labels = property ? ENCLAVE_IMAGE_LABELS[property.id] : undefined;
+    if (labels && labels[index]) return labels[index];
+    return index === 0 ? "Signature Architectural Exterior View" : `Premium Enclave Luxury Amenity View ${index + 1}`;
+  };
+
+
+  // Traveling times from Haatso to premium social landmarks in Accra
+  const landmarks = [
+    { name: "Wisconsin Intl University", time: "5 Mins", distance: "1.8 km", note: "Immediate Educational Proximity" },
+    { name: "Sovereign Healthcare Center", time: "8 Mins", distance: "3.2 km", note: "24/7 Advanced Medical Support" },
+    { name: "University of Ghana, Legon", time: "10 Mins", distance: "5.4 km", note: "Ghana's Premier Research Campus" },
+    { name: "A&C Luxury Mall, East Legon", time: "12 Mins", distance: "7.1 km", note: "Elite Retail, Dining & Leisure Hub" },
+    { name: "Kotoka International Airport", time: "15 Mins", distance: "11.5 km", note: "Sovereign Air Passage Link" }
+  ];
+
+  // Sovereign high-performance infrastructure specifications
+  const infrastructure = [
+    {
+      icon: <Sun className="w-5 h-5 text-[#F0C05A]" />,
+      title: "Sovereign Solar Grid",
+      spec: "15kVA Solar Infrastructure",
+      desc: "Industrial-grade hybrid solar array coupled with active high-voltage smart storage to guarantee zero-latency power handovers."
+    },
+    {
+      icon: <Droplets className="w-5 h-5 text-[#F0C05A]" />,
+      title: "Premium Borehole UV Filtration",
+      spec: "Medical-Grade Sterilization",
+      desc: "Dedicated reverse-osmosis UV filtration borehole plant integrated directly into the infrastructure grid for continuous clean supply."
+    },
+    {
+      icon: <Shield className="w-5 h-5 text-[#F0C05A]" />,
+      title: "Triple-Layer Security Security",
+      spec: "Sovereign Bio-Mesh Perimeter",
+      desc: "Full biometric credentials gates, multi-zone AI thermal perimeter lines, and 24/7 armed private quick-response guard personnel."
+    },
+    {
+      icon: <Cpu className="w-5 h-5 text-[#F0C05A]" />,
+      title: "Gigabit Fiber & Automation",
+      spec: "Sovereign Smart Integration",
+      desc: "Underground high-speed optical fiber cabling backhaul connected to an integrated home automation ecosystem control dashboard."
+    }
+  ];
+
+  if (!property) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0B2922]">
+        <Loader2 className="animate-spin text-[#F0C05A] mb-4" size={40} />
+        <span className="text-[10px] uppercase font-bold tracking-[0.4em] text-white/50">Retrieving Enclave Dossier...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="pt-32 pb-40 bg-white font-sans selection:bg-gold selection:text-white">
+    <div className="min-h-screen pt-32 pb-40 bg-[#0B2922] bg-gradient-to-b from-[#0B2922] via-[#0D3028] to-[#081F1A] text-white selection:bg-[#F0C05A] selection:text-black font-sans relative overflow-hidden">
       <SEO {...getPropertySEO(property)} />
+      
+      {/* Decorative Orbs */}
+      <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-[#F0C05A]/5 rounded-full blur-[150px] pointer-events-none"></div>
+      <div className="absolute top-[40%] right-[-10%] w-[600px] h-[600px] bg-[#0E332A]/40 rounded-full blur-[180px] pointer-events-none"></div>
+      <div className="absolute bottom-[10%] left-[20%] w-[400px] h-[400px] bg-[#F0C05A]/3 rounded-full blur-[130px] pointer-events-none"></div>
+
+      {/* Lightbox Modal */}
       {showLightbox && (
-        <div className="fixed inset-0 z-[200] bg-oak/98 flex items-center justify-center p-10 animate-in fade-in duration-500">
-          <button onClick={() => setShowLightbox(false)} className="absolute top-10 right-10 text-white hover:text-gold transition-colors active:scale-90"><X size={40} /></button>
-          <ImageComponent src={property.images[activeImg]} className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)]" alt="Full view" />
+        <div className="fixed inset-0 z-[200] bg-[#081F1A]/98 flex items-center justify-center p-10 backdrop-blur-md animate-in fade-in duration-500">
+          <button 
+            onClick={() => setShowLightbox(false)} 
+            className="absolute top-10 right-10 text-white hover:text-[#F0C05A] transition-colors active:scale-90 p-3 bg-white/5 border border-white/10 rounded-full backdrop-blur-md"
+          >
+            <X size={32} />
+          </button>
+          <ImageComponent 
+            src={property.images[activeImg]} 
+            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/10" 
+            alt="Full view" 
+          />
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-6 mb-16">
-        <button onClick={() => navigate('/gallery')} className="flex items-center text-gray-400 hover:text-oak transition-all hover:-translate-x-2 group">
-          <ChevronLeft className="w-5 h-5 mr-2 transition-transform group-hover:scale-125" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.4em]">Return to Index</span>
+      {/* Back Button Bar */}
+      <div className="max-w-7xl mx-auto px-6 mb-12 relative z-10">
+        <button 
+          onClick={() => navigate('/gallery')} 
+          className="bg-white/5 border border-white/10 backdrop-blur-md px-6 py-3 rounded-full hover:bg-white/10 transition-all cursor-pointer inline-flex items-center text-[#F0C05A] hover:text-white uppercase tracking-[0.3em] text-[9px] font-bold group"
+        >
+          <ChevronLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+          Return to Enclaves Portfolio
         </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-20">
-        <div className="lg:col-span-8 space-y-20">
-          <div className="space-y-8">
-            <div className="aspect-[16/9] relative rounded-sm overflow-hidden luxury-shadow bg-gray-100 group cursor-pointer" onClick={() => setShowLightbox(true)}>
-              <ImageComponent src={property.images[activeImg]} className="w-full h-full object-cover transition-transform duration-[3s] group-hover:scale-110" alt="" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
-              <div className="absolute bottom-10 left-10 flex items-center space-x-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="bg-white/20 backdrop-blur-md p-4 rounded-full text-white border border-white/20">
-                  <Search size={20} />
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-16 relative z-10">
+        {/* Main Content Area */}
+        <div className="lg:col-span-8 space-y-16">
+          
+          {/* Immersive Gallery Section */}
+          <div className="space-y-6">
+            <div 
+              className="aspect-[16/9] relative rounded-2xl overflow-hidden bg-[#0D3028] border border-white/10 luxury-shadow group cursor-pointer"
+              onClick={() => setShowLightbox(true)}
+            >
+              <ImageComponent 
+                src={property.images[activeImg]} 
+                className="w-full h-full object-cover transition-transform duration-[3s] group-hover:scale-105" 
+                alt={getImageLabel(activeImg)} 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#081F1A]/80 via-transparent to-transparent"></div>
+              
+              {/* Image Description Tag */}
+              <div className="absolute bottom-6 left-6 right-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-5 py-3 rounded-xl">
+                  <span className="text-[10px] uppercase font-bold tracking-[0.25em] text-[#F0C05A] block mb-0.5">Currently Viewing</span>
+                  <span className="text-white text-sm font-serif font-light">{getImageLabel(activeImg)}</span>
                 </div>
-                <span className="text-white text-[10px] uppercase font-bold tracking-widest">Enlarge Asset Image</span>
+                <div className="bg-[#F0C05A] hover:bg-[#E6AF45] text-black px-4 py-3 rounded-xl flex items-center space-x-2 transition-colors shrink-0 font-bold uppercase tracking-wider text-[9px]">
+                  <Search size={14} />
+                  <span>Enlarge Digital Asset</span>
+                </div>
               </div>
             </div>
-            <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-hide">
+
+            {/* Slider Thumbnails Dock */}
+            <div className="bg-white/5 border border-white/10 backdrop-blur-md p-4 rounded-2xl flex space-x-4 overflow-x-auto scrollbar-hide">
               {property.images.map((img, idx) => (
                 <button
                   key={idx}
                   onClick={() => setActiveImg(idx)}
-                  className={`w-32 aspect-[4/3] flex-shrink-0 rounded-sm overflow-hidden border-2 transition-all hover:scale-105 ${activeImg === idx ? 'border-gold opacity-100' : 'border-transparent opacity-40 hover:opacity-100'}`}
+                  className={`w-28 md:w-32 aspect-[4/3] flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all relative group/thumb ${
+                    activeImg === idx 
+                      ? 'border-[#F0C05A] scale-95 shadow-[0_0_15px_rgba(240,192,90,0.3)]' 
+                      : 'border-white/10 opacity-50 hover:opacity-100 hover:scale-105'
+                  }`}
                 >
                   <ImageComponent src={img} className="w-full h-full object-cover" alt="" />
+                  <div className="absolute inset-0 bg-black/20 group-hover/thumb:bg-transparent transition-colors"></div>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="border-b border-gray-100 pb-16 space-y-10">
+          {/* Enclave Metadata Dossier */}
+          <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-8 md:p-12 space-y-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#F0C05A]/3 rounded-full blur-2xl pointer-events-none"></div>
+            
             <div className="flex items-center space-x-4">
-              <span className="text-gold uppercase tracking-[0.5em] font-bold text-[10px]">{property.category}</span>
-              <div className="w-12 h-px bg-gold/30"></div>
-              <span className="text-gray-400 text-[9px] uppercase tracking-widest font-medium">Asset Ref: NOAK-EXC-{id}</span>
+              <span className="text-[#F0C05A] uppercase tracking-[0.4em] font-bold text-[10px]">{property.category}</span>
+              <div className="w-8 h-[1px] bg-white/20"></div>
+              <span className="text-white/40 text-[9px] uppercase tracking-widest font-semibold">Asset Dossier Code: NOAK-{id}</span>
             </div>
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10">
-              <h1 className="font-serif text-7xl text-oak leading-[0.9] max-w-2xl">{property.title}</h1>
-              <div className="text-left md:text-right space-y-2">
-                <span className="text-gold uppercase tracking-[0.3em] text-[10px] font-bold block">Market Status</span>
-                <span className="text-4xl font-serif italic text-oak block">Consultation Price</span>
-              </div>
-            </div>
-            <div className="flex items-center text-gray-400 text-sm space-x-3 bg-gray-50 px-6 py-4 rounded-sm w-fit border border-gray-100">
-              <MapPin size={16} className="text-gold" />
-              <span className="font-light tracking-wide">{property.location}, Accra, Ghana</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 py-12 border-b border-gray-50">
-            {[
-              { val: property.beds, label: 'Master Suites' },
-              { val: property.baths, label: 'Luxury Baths' },
-              { val: property.sqft ? property.sqft.toLocaleString() : undefined, label: 'Internal SQFT' },
-              { val: '24/7 Gated', label: 'Security Protocols' }
-            ].filter(spec => spec.val !== undefined).map((spec, i) => (
-              <div key={i} className="space-y-3 group">
-                <span className="font-serif text-4xl text-oak block group-hover:text-gold transition-colors duration-500">{spec.val}</span>
-                <span className="text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold block">{spec.label}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
-            <div className="md:col-span-2 space-y-12">
-              <div className="space-y-6">
-                <h3 className="font-serif text-3xl text-oak flex items-center">
-                  <span className="w-12 h-px bg-gold mr-6"></span>
-                  Architectural Narrative
-                </h3>
-                <p className="text-gray-600 leading-relaxed font-light text-xl italic">{property.description}</p>
-              </div>
-
-              <div className="space-y-8 pt-10 border-t border-gray-50">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-serif text-3xl text-oak">Neighborhood Intel</h4>
-                  <div className="flex items-center space-x-2 text-gold animate-pulse">
-                    <MapIcon size={14} />
-                    <span className="text-[9px] uppercase font-bold tracking-[0.3em]">Live Grounding Active</span>
-                  </div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+              <div className="space-y-4">
+                <h1 className="font-serif text-5xl md:text-6xl text-white leading-tight">{property.title}</h1>
+                <div className="inline-flex items-center text-white/70 text-sm space-x-2 bg-[#0D3028] px-5 py-3 rounded-full border border-white/5">
+                  <MapPin size={15} className="text-[#F0C05A]" />
+                  <span className="font-light tracking-wide">{property.location}, Accra, Ghana</span>
                 </div>
+              </div>
+              <div className="text-left md:text-right shrink-0 bg-white/5 border border-white/10 p-5 rounded-2xl md:mt-0 mt-4 min-w-[200px]">
+                <span className="text-[#F0C05A] uppercase tracking-[0.3em] text-[9px] font-bold block mb-1">Consultation Protocol</span>
+                <span className="text-3xl font-serif italic text-white block">Asset Available</span>
+              </div>
+            </div>
 
-                <div className="bg-gray-50 p-10 rounded-sm border-l-4 border-gold relative overflow-hidden group">
-                  {isLoadingIntel ? (
-                    <div className="flex flex-col items-center py-10 text-gold space-y-4">
-                      <Loader2 className="animate-spin w-8 h-8" />
-                      <span className="text-[10px] uppercase tracking-[0.4em] font-bold">Accessing Google Maps Grid...</span>
+            {/* Premium Space Specifications Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-white/10">
+              {[
+                { val: property.beds, label: 'Master Ensuites' },
+                { val: property.baths, label: 'Wellness Baths' },
+                { val: property.sqft ? property.sqft.toLocaleString() : 'Negotiable', label: 'Enclosed SQFT' },
+                { val: '24/7 Gated Secure', label: 'Security Regime' }
+              ].map((spec, i) => (
+                <div key={i} className="bg-white/5 border border-white/5 p-5 rounded-xl hover:border-white/20 transition-all duration-300 group">
+                  <span className="font-serif text-3xl text-white group-hover:text-[#F0C05A] transition-colors block mb-1">{spec.val}</span>
+                  <span className="text-[9px] uppercase tracking-[0.25em] text-white/50 font-bold block">{spec.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Architectural Narrative Panel */}
+          <div className="space-y-6">
+            <h3 className="font-serif text-3xl text-white flex items-center space-x-4">
+              <span className="w-10 h-[1px] bg-[#F0C05A]"></span>
+              <span>Architectural Philosophy</span>
+            </h3>
+            <p className="text-white/80 leading-relaxed font-light text-lg italic bg-white/5 border border-white/5 p-8 rounded-2xl relative">
+              <span className="absolute top-4 left-6 text-7xl font-serif text-white/5 select-none pointer-events-none">“</span>
+              {property.description}
+            </p>
+          </div>
+
+          {/* Infrastructure Specifications Sheet */}
+          <div className="space-y-8 pt-6">
+            <h3 className="font-serif text-3xl text-white flex items-center space-x-4">
+              <span className="w-10 h-[1px] bg-[#F0C05A]"></span>
+              <span>Technical Infrastructure Specification</span>
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {infrastructure.map((infra, idx) => (
+                <div 
+                  key={idx} 
+                  className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-6 hover:-translate-y-1 transition-all duration-300 space-y-4"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className="p-3 bg-[#0D3028] border border-white/10 rounded-xl">
+                      {infra.icon}
                     </div>
-                  ) : intel ? (
-                    <div className="space-y-8 animate-in fade-in duration-1000">
-                      <p className="text-gray-500 text-base font-light leading-relaxed">{intel.text}</p>
+                    <div>
+                      <h4 className="font-serif text-lg text-white font-medium">{infra.title}</h4>
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-[#F0C05A]">{infra.spec}</span>
+                    </div>
+                  </div>
+                  <p className="text-white/60 text-xs leading-relaxed font-light">{infra.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Social Landmarks Proximity Grid */}
+          <div className="space-y-8 pt-6">
+            <h3 className="font-serif text-3xl text-white flex items-center space-x-4">
+              <span className="w-10 h-[1px] bg-[#F0C05A]"></span>
+              <span>Accra Social Landmarks Traveling Times</span>
+            </h3>
+            <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-8 space-y-6">
+              <p className="text-white/70 text-sm font-light leading-relaxed">
+                Positioned strategically within the serene residential pocket of Haatso, NewOak estates guarantee outstanding access to Accra's premium business, academic, and leisure grids.
+              </p>
+              
+              <div className="space-y-4">
+                {landmarks.map((landmark, idx) => (
+                  <div 
+                    key={idx} 
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/5 border border-white/5 rounded-xl hover:border-white/15 transition-all group"
+                  >
+                    <div className="flex items-center space-x-4 mb-2 sm:mb-0">
+                      <div className="w-8 h-8 rounded-full bg-[#0D3028] border border-white/10 flex items-center justify-center text-[#F0C05A] group-hover:scale-110 transition-transform">
+                        <Compass className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-white block">{landmark.name}</span>
+                        <span className="text-[9px] uppercase tracking-widest text-white/40 font-bold">{landmark.note}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-6">
+                      <div className="text-right shrink-0">
+                        <span className="text-white/40 text-[9px] uppercase tracking-wider font-bold block">Distance</span>
+                        <span className="text-xs font-semibold text-white/90">{landmark.distance}</span>
+                      </div>
+                      
+                      <div className="bg-[#0D3028] border border-white/10 px-4 py-2 rounded-xl flex items-center space-x-2 text-[#F0C05A] min-w-[100px] justify-center">
+                        <Clock size={12} />
+                        <span className="text-xs font-bold font-mono">{landmark.time}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Neighborhood Intelligence Map Section */}
+          <div className="space-y-6 pt-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-3xl text-white flex items-center space-x-4">
+                <span className="w-10 h-[1px] bg-[#F0C05A]"></span>
+                <span>Neighborhood Intel Scan</span>
+              </h3>
+              <div className="flex items-center space-x-2 text-[#F0C05A] animate-pulse shrink-0">
+                <MapIcon size={14} />
+                <span className="text-[9px] uppercase font-bold tracking-[0.3em]">Live Grounding Active</span>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 backdrop-blur-md p-8 md:p-10 rounded-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#0D3028] rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+              
+              {isLoadingIntel ? (
+                <div className="flex flex-col items-center py-12 text-[#F0C05A] space-y-4">
+                  <Loader2 className="animate-spin w-8 h-8" />
+                  <span className="text-[10px] uppercase tracking-[0.4em] font-bold text-white/50">Synthesizing Google Maps Grid...</span>
+                </div>
+              ) : intel ? (
+                <div className="space-y-8 animate-in fade-in duration-1000 relative z-10">
+                  <p className="text-white/80 text-base font-light leading-relaxed">{intel.text}</p>
+                  
+                  {intel.sources && intel.sources.length > 0 && (
+                    <div className="space-y-3">
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-[#F0C05A] block px-1">Grounding References</span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {intel.sources.map((source, i) => (
                           <a
@@ -221,125 +447,174 @@ export const PropertyDetail: React.FC = () => {
                             href={source.uri}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-white border border-gray-100 p-4 flex items-center justify-between hover:border-gold hover:shadow-lg transition-all group/link"
+                            className="bg-white/5 border border-white/5 p-4 rounded-xl flex items-center justify-between hover:border-[#F0C05A] hover:bg-white/10 transition-all group/link"
                           >
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-gold/10 rounded-full flex items-center justify-center text-gold group-hover/link:bg-gold group-hover/link:text-white transition-colors">
-                                <MapPin size={14} />
+                            <div className="flex items-center space-x-3 truncate">
+                              <div className="w-8 h-8 bg-[#0D3028] border border-white/15 rounded-full flex items-center justify-center text-[#F0C05A] group-hover/link:bg-[#F0C05A] group-hover/link:text-black transition-colors shrink-0">
+                                <MapPin size={13} />
                               </div>
-                              <span className="text-[10px] uppercase font-bold tracking-widest text-oak truncate max-w-[150px]">{source.title}</span>
+                              <span className="text-[10px] uppercase font-bold tracking-widest text-white truncate max-w-[180px]">{source.title}</span>
                             </div>
-                            <ExternalLink size={12} className="text-gray-300 group-hover/link:text-gold" />
+                            <ExternalLink size={12} className="text-white/40 group-hover/link:text-[#F0C05A] shrink-0" />
                           </a>
                         ))}
                       </div>
                     </div>
-                  ) : <p className="text-gray-400 text-sm italic">Verified data synthesis active.</p>}
+                  )}
                 </div>
-              </div>
+              ) : (
+                <p className="text-white/40 text-sm italic text-center py-6">Neighborhood analysis verified and ready.</p>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Action Panel / Reservation Desk */}
+        <div className="lg:col-span-4 h-fit">
+          <div className="space-y-8 sticky top-32">
+            
+            {/* Reservation Card */}
+            <div className="bg-[#0D3028]/80 backdrop-blur-xl border border-white/10 shadow-2xl p-8 rounded-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#F0C05A]/5 rounded-full blur-2xl pointer-events-none"></div>
+              
+              {isSuccess ? (
+                <div className="text-center py-12 animate-in zoom-in-95 duration-500">
+                  <div className="w-20 h-20 bg-[#F0C05A]/10 border border-[#F0C05A]/30 rounded-full flex items-center justify-center text-[#F0C05A] mx-auto mb-8 shadow-[0_0_20px_rgba(240,192,90,0.15)]">
+                    <Check size={36} strokeWidth={1.5} />
+                  </div>
+                  <h4 className="font-serif text-2xl text-white mb-3">Inquiry Logged</h4>
+                  <p className="text-white/60 text-xs leading-relaxed mb-8 font-light">
+                    Your request has been filed under NewOak Sovereign Protocol. An executive consultant will contact your office within 4 business hours.
+                  </p>
+                  <button 
+                    onClick={() => setIsSuccess(false)} 
+                    className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#F0C05A] hover:underline"
+                  >
+                    Log Secondary Request
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <h4 className="font-serif text-3xl text-white">Reserve Enclave</h4>
+                    <p className="text-[9px] text-[#F0C05A] uppercase tracking-[0.3em] font-bold">Confidential Digital Registry</p>
+                  </div>
+                  
+                  <form onSubmit={handleConsultationSubmit} className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-[9px] uppercase font-bold tracking-widest text-white/50 px-1">Legal Representative</label>
+                      <input
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Full Legal Name"
+                        className="w-full bg-[#081F1A]/50 border border-white/10 p-4 text-xs text-white placeholder-white/30 focus:border-[#F0C05A] focus:outline-none focus:bg-[#081F1A]/80 transition-all rounded-xl"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-[9px] uppercase font-bold tracking-widest text-white/50 px-1">Secure Contact Email</label>
+                      <input
+                        required
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="Email Address"
+                        className="w-full bg-[#081F1A]/50 border border-white/10 p-4 text-xs text-white placeholder-white/30 focus:border-[#F0C05A] focus:outline-none focus:bg-[#081F1A]/80 transition-all rounded-xl"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-[9px] uppercase font-bold tracking-widest text-white/50 px-1">Proposed Briefing Date</label>
+                      <input
+                        required
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        className="w-full bg-[#081F1A]/50 border border-white/10 p-4 text-xs text-white focus:border-[#F0C05A] focus:outline-none focus:bg-[#081F1A]/80 transition-all rounded-xl scheme-dark"
+                      />
+                    </div>
+                    
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-[#F0C05A] hover:bg-[#E6AF45] text-black py-5 rounded-xl text-[10px] font-bold uppercase tracking-[0.4em] hover:shadow-[0_0_25px_rgba(240,192,90,0.25)] transition-all flex items-center justify-center space-x-3 active:scale-95 disabled:opacity-50 select-none cursor-pointer"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <>
+                          <span>Transmit Secure Request</span>
+                          <Send size={12} />
+                        </>
+                      )}
+                    </button>
+                    
+                    <p className="text-[8px] text-center text-white/30 tracking-widest font-light">
+                      NEWOAK PRIVATE CLIENT GLOBAL SECURITY STANDARDS
+                    </p>
+                  </form>
+                </div>
+              )}
             </div>
 
-            {/* Dossier AI Report */}
-            <div className="bg-oak p-10 text-white rounded-sm luxury-shadow relative overflow-hidden h-fit lg:mt-[-150px] z-10">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gold/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
-              <div className="relative z-10">
-                <div className="flex items-center space-x-4 mb-10">
-                  <Sparkles className="text-gold w-6 h-6" />
-                  <h3 className="font-serif text-2xl">Investment Dossier</h3>
+            {/* AI Investment Analysis Desk */}
+            <div className="bg-white/5 border border-white/10 backdrop-blur-md p-8 rounded-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#F0C05A]/3 rounded-full blur-2xl pointer-events-none"></div>
+              
+              <div className="relative z-10 space-y-6">
+                <div className="flex items-center space-x-3">
+                  <Sparkles className="text-[#F0C05A] w-5 h-5" />
+                  <h3 className="font-serif text-xl text-white">Investment Dossier Scan</h3>
                 </div>
 
                 {isGeneratingReport ? (
-                  <div className="flex flex-col items-center py-20 text-gold space-y-6">
+                  <div className="flex flex-col items-center py-12 text-[#F0C05A] space-y-4">
                     <Loader2 className="w-6 h-6 animate-spin" />
-                    <p className="text-[9px] uppercase tracking-[0.4em] font-bold text-center">Synthesizing Asset Value...</p>
+                    <p className="text-[9px] uppercase tracking-[0.4em] font-bold text-white/50 text-center">Synthesizing Asset Performance...</p>
                   </div>
                 ) : aiReport ? (
-                  <div className="animate-in fade-in duration-1000">
-                    <div className="text-gray-400 text-sm leading-relaxed font-light prose prose-invert max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
-                      {aiReport}
+                  <div className="space-y-6 animate-in fade-in duration-1000">
+                    <div className="text-white/70 text-xs leading-relaxed font-light pr-2 max-h-[300px] overflow-y-auto custom-scrollbar prose prose-invert font-sans">
+                      {aiReport.split('\n\n').map((paragraph, i) => (
+                        <p key={i} className="mb-4">{paragraph}</p>
+                      ))}
                     </div>
-                    <button className="mt-10 w-full border border-gold/40 py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-gold hover:text-white transition-all">Download Strategic Report</button>
+                    <button 
+                      onClick={() => {
+                        const element = document.createElement("a");
+                        const file = new Blob([`INVESTMENT DOSSIER: ${property.title}\n\n${aiReport}`], {type: 'text/plain'});
+                        element.href = URL.createObjectURL(file);
+                        element.download = `${property.title.replace(/\s+/g, '_')}_Investment_Dossier.txt`;
+                        document.body.appendChild(element);
+                        element.click();
+                      }}
+                      className="w-full border border-[#F0C05A]/30 py-3 rounded-xl text-[9px] text-[#F0C05A] font-bold uppercase tracking-widest hover:bg-[#F0C05A] hover:text-black transition-all cursor-pointer"
+                    >
+                      Export Dossier File (.txt)
+                    </button>
                   </div>
                 ) : (
-                  <div className="space-y-8">
-                    <p className="text-gray-500 text-xs italic font-light">Generate a sophisticated AI-powered synthesis of market growth and architectural value for this enclave.</p>
+                  <div className="space-y-6">
+                    <p className="text-white/50 text-[11px] leading-relaxed font-light">
+                      Synthesize live market growth forecasts, Accra regional land appreciation records, and rental yield estimations utilizing Gemini's intelligence engine.
+                    </p>
                     <button
                       onClick={generateAIReport}
-                      className="w-full bg-gold text-white py-5 rounded-sm font-bold uppercase tracking-widest text-[10px] hover:bg-gold-dark transition-all flex items-center justify-center space-x-3 shadow-2xl shadow-gold/20 active:scale-95"
+                      className="w-full bg-[#0D3028] hover:bg-[#124238] border border-white/10 text-[#F0C05A] py-4 rounded-xl font-bold uppercase tracking-widest text-[9px] transition-all flex items-center justify-center space-x-2 cursor-pointer"
                     >
-                      <span>Generate AI Analysis</span>
-                      <Sparkles size={14} />
+                      <span>Execute Analytical Model</span>
+                      <Sparkles size={12} />
                     </button>
                   </div>
                 )}
               </div>
             </div>
+
           </div>
         </div>
 
-        {/* Action Panel */}
-        <div className="lg:col-span-4 h-fit">
-          <div className="bg-white p-12 rounded-sm border border-gray-100 shadow-2xl sticky top-32">
-            {isSuccess ? (
-              <div className="text-center py-16 animate-in zoom-in-95 duration-500">
-                <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center text-green-600 mx-auto mb-10 border border-green-100">
-                  <Check size={40} strokeWidth={1.5} />
-                </div>
-                <h4 className="font-serif text-3xl text-oak mb-4">Inquiry Recorded</h4>
-                <p className="text-gray-400 text-sm leading-relaxed mb-10 font-light px-4">An executive advisor will contact you within 4 business hours.</p>
-                <button onClick={() => setIsSuccess(false)} className="text-[10px] font-bold uppercase tracking-[0.4em] text-gold hover:underline">New Inquiry Request</button>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-4 mb-12">
-                  <h4 className="font-serif text-4xl text-oak">Reserve Viewing</h4>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-[0.3em] font-bold">Standard Consultation Access</p>
-                </div>
-                <form onSubmit={handleConsultationSubmit} className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Legal Representative</label>
-                    <input
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Full Legal Name"
-                      className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Primary Email</label>
-                    <input
-                      required
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="Email Address"
-                      className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] uppercase font-bold tracking-widest text-gray-400 px-1">Preferred Consultation Date</label>
-                    <input
-                      required
-                      type="date"
-                      value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                      className="w-full bg-gray-50 border border-gray-100 p-5 text-xs focus:border-gold focus:outline-none focus:bg-white transition-all rounded-sm"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-gold text-white py-6 rounded-sm text-[10px] font-bold uppercase tracking-[0.4em] hover:bg-oak hover:shadow-2xl transition-all shadow-lg shadow-gold/20 flex items-center justify-center space-x-3 active:scale-95 disabled:opacity-50"
-                  >
-                    {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <span>Initialize Contact</span>}
-                  </button>
-                  <p className="text-[9px] text-center text-gray-400 mt-6 tracking-widest font-light">CONFIDENTIALITY ASSURED &bull; NEWOAK GLO-SEC PROTOCOL</p>
-                </form>
-              </>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
